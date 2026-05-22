@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwingScan — AI Watchlist Builder</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;600;700&display=swap');
+:root{--bg:#060810;--surface:#0c0f1a;--card:#101420;--border:#1a2035;--green:#00f5a0;--gdim:rgba(0,245,160,0.1);--yellow:#ffd166;--red:#ff4d6d;--blue:#4cc9f0;--purple:#9b5de5;--orange:#f77f00;--text:#e2e8f8;--muted:#5a6485;--muted2:#8892b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,160,0.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,245,160,0.03)1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:2px;background:linear-gradient(135deg,var(--green),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+.logo-sub{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+.header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.date-badge{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.criteria-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,245,160,0.05);border:1px solid rgba(0,245,160,0.2);border-radius:20px;padding:3px 10px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--green);cursor:pointer;}
+.criteria-badge:hover{background:var(--gdim);}
+.slabel{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin:18px 0 10px;}
+.main-tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto;}
+.main-tab{padding:8px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;color:var(--muted2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap;flex-shrink:0;}
+.main-tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+.themes{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
+.theme-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted2);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px;}
+.theme-btn:hover{border-color:var(--green);color:var(--text);}
+.theme-btn.active{background:var(--gdim);border-color:var(--green);color:var(--green);}
+.add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px;}
+.ainput{flex:1;min-width:80px;max-width:110px;padding:7px 11px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.78rem;text-transform:uppercase;outline:none;}
+.ainput:focus{border-color:var(--green);}
+.ainput::placeholder{color:var(--muted);text-transform:none;}
+.tsel{padding:7px 11px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;outline:none;cursor:pointer;max-width:200px;}
+.addbtn{padding:7px 14px;background:var(--gdim);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.15s;}
+.addbtn:hover{background:var(--green);color:#000;}
+.scan-btn{width:100%;padding:14px;background:linear-gradient(135deg,#00f5a0,#4cc9f0);border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#060810;cursor:pointer;transition:all 0.2s;margin:14px 0;}
+.scan-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,245,160,0.3);}
+.scan-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.ldiv{display:none;text-align:center;padding:32px;font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted2);}
+.lbar{height:2px;background:var(--border);border-radius:2px;margin:12px 0;overflow:hidden;}
+.lfill{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:2px;animation:la 2s ease-in-out infinite;}
+@keyframes la{0%{width:0}50%{width:70%}100%{width:100%}}
+.sbar{display:none;align-items:center;gap:7px;margin-bottom:12px;flex-wrap:wrap;}
+.slbl{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.sbtn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted2);font-size:0.68rem;cursor:pointer;transition:all 0.15s;}
+.sbtn.active{border-color:var(--green);color:var(--green);}
+.rh{display:none;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.rc{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted2);}
+.rc strong{color:var(--green);font-size:0.95rem;}
+/* STOCK CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:9px;transition:all 0.2s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+.card.hot::before{background:var(--green);}
+.card.near::before{background:var(--yellow);}
+.card.wait::before{background:var(--muted);}
+.card:hover{border-color:#2a3050;}
+.ct{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.sticker{font-family:'Bebas Neue',sans-serif;font-size:1.45rem;letter-spacing:1px;line-height:1;}
+.sname{font-size:0.68rem;color:var(--muted2);margin-top:2px;}
+.sr2{text-align:right;}
+.sp{font-family:'DM Mono',monospace;font-size:1rem;}
+.sc{font-family:'DM Mono',monospace;font-size:0.68rem;margin-top:2px;}
+.pos{color:var(--green);}.neg{color:var(--red);}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:9px;}
+.bh{background:rgba(0,245,160,0.1);color:var(--green);border:1px solid rgba(0,245,160,0.3);}
+.bw{background:rgba(255,209,102,0.1);color:var(--yellow);border:1px solid rgba(255,209,102,0.3);}
+.bn{background:rgba(90,100,133,0.2);color:var(--muted2);border:1px solid var(--border);}
+.zw{margin-bottom:10px;}
+.zlbl{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.zbar2{position:relative;height:26px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:visible;}
+.zfill{position:absolute;top:0;bottom:0;background:rgba(0,245,160,0.15);border:1px solid rgba(0,245,160,0.3);border-radius:6px;}
+.ztxt{position:absolute;font-family:'DM Mono',monospace;font-size:0.48rem;top:50%;transform:translateY(-50%);}
+.pin{position:absolute;top:-5px;bottom:-5px;width:2px;background:white;border-radius:2px;transform:translateX(-50%);}
+.pinlbl{position:absolute;bottom:100%;font-family:'DM Mono',monospace;font-size:0.58rem;background:var(--card);padding:1px 5px;border-radius:4px;transform:translateX(-50%);white-space:nowrap;margin-bottom:3px;}
+.lgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px;}
+.lbox{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 9px;}
+.ll{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;}
+.lv{font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:500;}
+.ls{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);margin-top:1px;}
+.cbot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.rtag{font-family:'DM Mono',monospace;font-size:0.58rem;padding:3px 7px;border-radius:5px;background:rgba(247,127,0,0.1);color:var(--orange);border:1px solid rgba(247,127,0,0.2);}
+.wbtn{padding:4px 11px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted2);font-size:0.68rem;cursor:pointer;transition:all 0.15s;}
+.wbtn.saved{background:var(--gdim);border-color:var(--green);color:var(--green);}
+/* BROWSE */
+.tsec{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.tshdr{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;user-select:none;}
+.tstitle{font-size:0.85rem;font-weight:700;}
+.tsmeta{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);}
+.tsbody{display:none;padding:12px 14px;border-top:1px solid var(--border);}
+.tsbody.open{display:block;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{font-family:'DM Mono',monospace;font-size:0.68rem;padding:4px 10px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--muted2);cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:5px;}
+.chip:hover{border-color:var(--blue);color:var(--blue);}
+.chip.cx{border-color:rgba(0,245,160,0.4);color:var(--green);}
+.xr{color:var(--red);margin-left:2px;font-size:0.75rem;}
+/* REASSIGN POPUP */
+.rpop{position:fixed;background:var(--card);border:1px solid var(--green);border-radius:12px;padding:14px;z-index:200;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,0.7);display:none;}
+.rpop h4{font-size:0.78rem;margin-bottom:10px;color:var(--green);}
+.ropt{display:block;width:100%;text-align:left;padding:7px 10px;background:transparent;border:none;color:var(--text);font-size:0.75rem;cursor:pointer;border-radius:6px;transition:all 0.15s;}
+.ropt:hover{background:var(--surface);color:var(--green);}
+.rcls{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;}
+/* TRENDING */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;}
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;transition:all 0.2s;}
+.tcard:hover{border-color:var(--green);transform:translateY(-2px);}
+.tcktick{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:1px;}
+.tcname{font-size:0.62rem;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;}
+.scbar{height:4px;background:var(--border);border-radius:2px;margin:4px 0 2px;}
+.scfill{height:100%;border-radius:2px;}
+.mstats{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px;}
+.mstat{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 5px;}
+.mslbl{font-family:'DM Mono',monospace;font-size:0.48rem;color:var(--muted);margin-bottom:1px;}
+.msval{font-family:'DM Mono',monospace;font-size:0.62rem;}
+.taddbtn{width:100%;padding:4px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted2);font-size:0.62rem;cursor:pointer;transition:all 0.15s;margin-top:7px;}
+.taddbtn:hover{border-color:var(--green);color:var(--green);}
+.taddbtn.saved{border-color:var(--green);color:var(--green);background:var(--gdim);}
+/* FEEDBACK MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;display:none;justify-content:center;align-items:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:500px;width:100%;position:relative;animation:mfade 0.2s ease;}
+@keyframes mfade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;margin-bottom:4px;}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;}
+.feedback-loading{text-align:center;padding:20px;font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted2);}
+.feedback-content{display:none;}
+.fb-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
+.fb-lbl{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.fb-text{font-size:0.8rem;line-height:1.6;color:var(--text);}
+.fb-new-rule{font-size:0.78rem;color:var(--green);line-height:1.5;font-style:italic;}
+.conf-bar{height:6px;background:var(--border);border-radius:3px;margin:6px 0;}
+.conf-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green));}
+.catalyst-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.catalyst{font-family:'DM Mono',monospace;font-size:0.6rem;padding:2px 8px;border-radius:4px;background:rgba(76,201,240,0.1);color:var(--blue);border:1px solid rgba(76,201,240,0.2);}
+.updated-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,245,160,0.1);border:1px solid rgba(0,245,160,0.3);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--green);margin-top:8px;}
+/* LEARNING TAB */
+.learn-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.learn-card h3{font-size:0.85rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.rule-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.78rem;line-height:1.5;}
+.rule-item:last-child{border-bottom:none;}
+.rule-num{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);flex-shrink:0;padding-top:2px;}
+.rule-learned{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--green);display:inline-block;margin-right:5px;}
+.missed-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:7px;}
+.missed-ticker{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--yellow);}
+.missed-reason{font-size:0.75rem;color:var(--muted2);margin-top:4px;line-height:1.5;}
+.missed-rule{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--green);margin-top:5px;}
+/* SAVED */
+.savrow{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;flex-wrap:wrap;}
+.savtk{font-family:'Bebas Neue',sans-serif;font-size:1rem;width:52px;}
+.savzone{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--green);flex:1;}
+.savstop{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--red);}
+.savt1{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--yellow);}
+.savt2{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--blue);}
+.savrmv{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 5px;font-size:0.85rem;}
+.savrmv:hover{color:var(--red);}
+.em{background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:11px 14px;font-size:0.76rem;color:var(--red);margin-bottom:14px;display:none;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header-row">
+    <div>
+      <div class="logo">SwingScan</div>
+      <div class="logo-sub">Self-Improving AI Watchlist · Powered by Claude</div>
+      <div class="date-badge" style="margin-top:6px;"><span class="dot"></span><span id="dstr"></span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <div class="criteria-badge" onclick="showTab('learning',document.querySelectorAll('.main-tab')[3])">
+        🧠 Criteria v<span id="cv">1</span> · <span id="pl">0</span> learned
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);">Gets smarter every time you add a stock</div>
+    </div>
+  </div>
+
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="showTab('scan',this)">⚡ Scan</button>
+    <button class="main-tab" onclick="showTab('browse',this)">📂 Browse & Edit</button>
+    <button class="main-tab" onclick="showTab('trending',this)">🔥 Most Active</button>
+    <button class="main-tab" onclick="showTab('learning',this)">🧠 Learning Log</button>
+    <button class="main-tab" onclick="showTab('wl',this)">📋 Watchlist</button>
+  </div>
+
+  <!-- SCAN -->
+  <div class="tab-pane active" id="tab-scan">
+    <p class="slabel">Select Themes</p>
+    <div class="themes" id="tbar"></div>
+    <p class="slabel">Add Stock Manually (triggers self-improvement analysis)</p>
+    <div class="add-row">
+      <input class="ainput" id="at1" placeholder="e.g. TSLA" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+      <select class="tsel" id="as1"></select>
+      <button class="addbtn" onclick="doAdd('at1','as1')">+ Add & Analyze</button>
+    </div>
+    <button class="scan-btn" id="scbtn" onclick="runScan()">⚡ SCAN WATCHLIST</button>
+    <div class="em" id="em"></div>
+    <div class="ldiv" id="ldiv"><div id="ltxt">Claude is scanning markets...</div><div class="lbar"><div class="lfill"></div></div></div>
+    <div class="sbar" id="sbr">
+      <span class="slbl">Sort:</span>
+      <button class="sbtn active" onclick="sortC('zone',this)">🎯 Buy Zone First</button>
+      <button class="sbtn" onclick="sortC('chg',this)">📈 Biggest Movers</button>
+      <button class="sbtn" onclick="sortC('rwd',this)">💰 Best Reward</button>
+    </div>
+    <div class="rh" id="rhd"><div class="rc">Found <strong id="rcc">0</strong> setups</div><div style="font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted)">🟢 In zone &nbsp;🟡 Near &nbsp;⚪ Wait</div></div>
+    <div id="res"></div>
+  </div>
+
+  <!-- BROWSE -->
+  <div class="tab-pane" id="tab-browse">
+    <p class="slabel">Click Any Stock to Move It · Custom stocks shown in green</p>
+    <div id="tbr"></div>
+    <p class="slabel">Add Stock to Theme</p>
+    <div class="add-row">
+      <input class="ainput" id="at2" placeholder="e.g. TSLA" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+      <select class="tsel" id="as2"></select>
+      <button class="addbtn" onclick="doAdd('at2','as2')">+ Add & Analyze</button>
+    </div>
+  </div>
+
+  <!-- TRENDING -->
+  <div class="tab-pane" id="tab-trending">
+    <p class="slabel">🔥 Most Active — Options Vol + Momentum + Squeeze Score</p>
+    <button class="scan-btn" id="tbtn" onclick="loadTrending()" style="margin-top:0;">🔥 LOAD MOST ACTIVE STOCKS</button>
+    <div id="tarea"></div>
+  </div>
+
+  <!-- LEARNING LOG -->
+  <div class="tab-pane" id="tab-learning">
+    <p class="slabel">🧠 Self-Improvement Log</p>
+    <div id="learnContent">
+      <div style="color:var(--muted);font-size:0.8rem;padding:20px 0;">Loading learning history...</div>
+    </div>
+  </div>
+
+  <!-- WATCHLIST -->
+  <div class="tab-pane" id="tab-wl">
+    <p class="slabel">My Saved Watchlist</p>
+    <div id="svd"><p style="color:var(--muted);font-size:0.8rem;padding:20px 0;">No stocks saved yet.</p></div>
+  </div>
+</div>
+
+<!-- REASSIGN POPUP -->
+<div class="rpop" id="rpop">
+  <button class="rcls" onclick="closeR()">✕</button>
+  <h4 id="rptitle">Move to:</h4>
+  <div id="rpopts"></div>
+</div>
+
+<!-- FEEDBACK MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🧠 Why Was This Missed?</h3>
+    <p style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);margin-bottom:14px;">Analyzing why our scanner didn't suggest this stock...</p>
+    <div class="feedback-loading" id="fbloading">
+      <div>Claude is researching <strong id="fbtkr"></strong>...</div>
+      <div class="lbar" style="margin-top:12px;"><div class="lfill"></div></div>
+    </div>
+    <div class="feedback-content" id="fbcontent"></div>
+  </div>
+</div>
+
+<script>
+document.getElementById('dstr').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});
+
+const THEMES = {
+  ai:     {e:'🤖',l:'AI & Technology',    t:['MSFT','META','GOOGL','AMZN','AAPL','CRM','NOW','PLTR','AI','SNOW'],x:[]},
+  semi:   {e:'💾',l:'Semiconductors',     t:['NVDA','AMD','INTC','MU','AMAT','LRCX','KLAC','ASML','TSM','QCOM','MRVL','AVGO'],x:[]},
+  robot:  {e:'🦾',l:'Robotics & Edge AI', t:['ISRG','TER','SYM','PRCT','PATH','JOBY','ACHR','CGNX','ABB'],x:[]},
+  def:    {e:'🛡️',l:'Defense',            t:['LMT','RTX','NOC','GD','HII','AVAV','LDOS','CW','KTOS','BA'],x:[]},
+  space:  {e:'🚀',l:'Space',              t:['RKLB','ASTS','LUNR','RDW','SPCE'],x:[]},
+  tel:    {e:'📡',l:'Telecom & Voice AI', t:['SOUN','CRNC','BBAI','LPSN','T','VZ','TMUS','ERIC'],x:[]},
+  nrg:    {e:'⚡',l:'Energy & Clean',     t:['ENPH','FSLR','NEE','PLUG','BE','CHPT','SEDG','RUN'],x:[]},
+  bio:    {e:'🧬',l:'Biotech & Health',   t:['MRNA','BNTX','CRSP','BEAM','GILD','REGN','RXRX'],x:[]},
+  cryp:   {e:'₿', l:'Crypto & Blockchain',t:['COIN','MARA','RIOT','CLSK','MSTR','HUT','IREN'],x:[]},
+  ev:     {e:'🔋',l:'EV & Mobility',      t:['TSLA','RIVN','LCID','NIO','LI','XPEV','BLNK','EVGO'],x:[]},
+};
+
+let AT = new Set(['ai','semi']), SDA = [], WL = [], rTK = null, rFK = null;
+
+// Load criteria badge
+async function loadCriteriaInfo() {
+  try {
+    const r = await fetch('/api/criteria');
+    const d = await r.json();
+    document.getElementById('cv').textContent = d.version;
+    document.getElementById('pl').textContent = d.learnedPatterns.length;
+  } catch(e) {}
+}
+loadCriteriaInfo();
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'browse') buildBrowser();
+  if (id === 'learning') loadLearningLog();
+  if (id === 'wl') renderWL();
+}
+
+function buildThemeBar() {
+  const bar = document.getElementById('tbar'); bar.innerHTML = '';
+  ['as1','as2'].forEach(id => { const s = document.getElementById(id); if(s) s.innerHTML = ''; });
+  Object.entries(THEMES).forEach(([k,t]) => {
+    const all = [...t.t, ...t.x];
+    const btn = document.createElement('button');
+    btn.className = 'theme-btn' + (AT.has(k) ? ' active' : '');
+    btn.innerHTML = `${t.e} ${t.l} <span style="font-family:'DM Mono',monospace;font-size:0.54rem;opacity:0.6">${all.length}</span>`;
+    btn.onclick = () => { if(AT.has(k)){if(AT.size===1)return;AT.delete(k);btn.classList.remove('active');}else{AT.add(k);btn.classList.add('active');} };
+    bar.appendChild(btn);
+    ['as1','as2'].forEach(id => { const s = document.getElementById(id); if(!s) return; const o = document.createElement('option'); o.value = k; o.textContent = `${t.e} ${t.l}`; s.appendChild(o); });
+  });
+}
+
+async function doAdd(iid, sid) {
+  const tk = document.getElementById(iid).value.trim().toUpperCase();
+  const k = document.getElementById(sid).value;
+  if (!tk) return;
+  const t = THEMES[k];
+  if (!t.t.includes(tk) && !t.x.includes(tk)) {
+    t.x.push(tk); document.getElementById(iid).value = '';
+    buildThemeBar(); buildBrowser();
+    toast(`✅ ${tk} added to ${t.l} — analyzing why it was missed...`);
+    await analyzeMissed(tk, t.l);
+  } else {
+    toast(`${tk} already in ${t.l}`);
+  }
+}
+
+async function analyzeMissed(ticker, theme) {
+  document.getElementById('fbtkr').textContent = ticker;
+  document.getElementById('fbloading').style.display = 'block';
+  document.getElementById('fbcontent').style.display = 'none';
+  document.getElementById('modal').classList.add('show');
+
+  try {
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ticker, theme })
+    });
+    const data = await res.json();
+    renderFeedback(data);
+    loadCriteriaInfo();
+  } catch(e) {
+    document.getElementById('fbcontent').innerHTML = `<p style="color:var(--red);font-size:0.8rem;">Could not analyze. Make sure the server is running.</p>`;
+    document.getElementById('fbloading').style.display = 'none';
+    document.getElementById('fbcontent').style.display = 'block';
+  }
+}
+
+function renderFeedback(d) {
+  const fc = document.getElementById('fbcontent');
+  const conf = d.confidence || 50;
+  const confColor = conf >= 70 ? 'var(--green)' : conf >= 45 ? 'var(--yellow)' : 'var(--red)';
+  fc.innerHTML = `
+    <div class="fb-section">
+      <div class="fb-lbl">Company</div>
+      <div class="fb-text"><strong>${d.companyName || d.ticker}</strong> · ${d.sector || ''}</div>
+      <div class="fb-text" style="margin-top:5px;color:var(--muted2)">${d.stockSummary || ''}</div>
+    </div>
+    <div class="fb-section" style="border-left:3px solid var(--red)">
+      <div class="fb-lbl">❌ Why We Missed It</div>
+      <div class="fb-text">${d.missedReason || 'Could not determine'}</div>
+    </div>
+    ${d.catalysts && d.catalysts.length ? `
+    <div class="fb-section">
+      <div class="fb-lbl">⚡ Key Catalysts</div>
+      <div class="catalyst-list">${d.catalysts.map(c => `<span class="catalyst">${c}</span>`).join('')}</div>
+    </div>` : ''}
+    <div class="fb-section" style="border-left:3px solid var(--green)">
+      <div class="fb-lbl">✅ New Rule Added to Scanner</div>
+      <div class="fb-new-rule">"${d.newRule || 'No new rule generated'}"</div>
+      ${d.criteriaUpdated ? `<div class="updated-badge">🧠 Criteria updated to v${d.newCriteriaVersion} — scanner is now smarter</div>` : ''}
+    </div>
+    <div class="fb-section">
+      <div class="fb-lbl">Swing Trade Confidence Score</div>
+      <div class="conf-bar"><div class="conf-fill" style="width:${conf}%"></div></div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:${confColor};margin-top:3px;">${conf}/100 — ${conf>=70?'Strong setup':'Moderate setup'}</div>
+    </div>`;
+  document.getElementById('fbloading').style.display = 'none';
+  fc.style.display = 'block';
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click', e => { if(e.target === document.getElementById('modal')) closeModal(); });
+
+function toast(msg) {
+  let t = document.getElementById('tst');
+  if (!t) { t = document.createElement('div'); t.id = 'tst'; t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#00f5a0;color:#060810;padding:10px 16px;border-radius:8px;font-size:0.78rem;font-weight:700;z-index:999;transition:opacity 0.4s;max-width:300px;'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = '1';
+  setTimeout(() => t.style.opacity = '0', 3000);
+}
+
+function buildBrowser() {
+  const div = document.getElementById('tbr'); div.innerHTML = '';
+  Object.entries(THEMES).forEach(([k,t]) => {
+    const all = [...t.t, ...t.x];
+    const wrap = document.createElement('div'); wrap.className = 'tsec';
+    const hdr = document.createElement('div'); hdr.className = 'tshdr';
+    hdr.innerHTML = `<div class="tstitle">${t.e} ${t.l}</div><div class="tsmeta">${all.length} stocks · tap to expand ▾</div>`;
+    const body = document.createElement('div'); body.className = 'tsbody';
+    const chips = document.createElement('div'); chips.className = 'chips';
+    all.forEach(tk => {
+      const cx = t.x.includes(tk);
+      const chip = document.createElement('div'); chip.className = 'chip' + (cx ? ' cx' : '');
+      chip.innerHTML = tk + (cx ? `<span class="xr" onclick="rmTk('${k}','${tk}',event)">✕</span>` : '');
+      chip.onclick = e => { if(e.target.classList.contains('xr')) return; showReassign(tk, k, chip); };
+      chips.appendChild(chip);
+    });
+    body.appendChild(chips); hdr.onclick = () => body.classList.toggle('open');
+    wrap.appendChild(hdr); wrap.appendChild(body); div.appendChild(wrap);
+  });
+}
+
+function rmTk(k, tk, e) { e.stopPropagation(); THEMES[k].x = THEMES[k].x.filter(x => x !== tk); buildBrowser(); buildThemeBar(); }
+
+function showReassign(tk, fk, chip) {
+  rTK = tk; rFK = fk;
+  const p = document.getElementById('rpop'), o = document.getElementById('rpopts');
+  document.getElementById('rptitle').textContent = `Move ${tk} to:`;
+  o.innerHTML = '';
+  Object.entries(THEMES).forEach(([k,t]) => {
+    if (k === fk) return;
+    const b = document.createElement('button'); b.className = 'ropt';
+    b.textContent = `${t.e} ${t.l}`; b.onclick = () => doReassign(k); o.appendChild(b);
+  });
+  const rb = document.createElement('button'); rb.className = 'ropt'; rb.style.color = 'var(--red)';
+  rb.textContent = '🗑️ Remove from theme'; rb.onclick = doRmFromTheme; o.appendChild(rb);
+  const r = chip.getBoundingClientRect();
+  p.style.display = 'block'; p.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  p.style.left = Math.min(r.left, window.innerWidth - 220) + 'px';
+}
+
+function doReassign(toKey) {
+  if (!rTK) return;
+  const f = THEMES[rFK]; f.t = f.t.filter(x => x !== rTK); f.x = f.x.filter(x => x !== rTK);
+  const t = THEMES[toKey]; if (!t.t.includes(rTK) && !t.x.includes(rTK)) t.x.push(rTK);
+  closeR(); buildBrowser(); buildThemeBar(); toast(`${rTK} moved to ${THEMES[toKey].l}`);
+}
+function doRmFromTheme() {
+  if (!rTK) return; const f = THEMES[rFK]; f.t = f.t.filter(x => x !== rTK); f.x = f.x.filter(x => x !== rTK);
+  closeR(); buildBrowser(); buildThemeBar();
+}
+function closeR() { document.getElementById('rpop').style.display = 'none'; rTK = null; rFK = null; }
+document.addEventListener('click', e => { const p = document.getElementById('rpop'); if(p.style.display === 'block' && !p.contains(e.target) && !e.target.classList.contains('chip')) closeR(); });
+
+// FIBONACCI CALCULATION
+function calcFib(price, hi, lo) {
+  const X = hi - lo, f50 = hi - X*0.5, f618 = hi - X*0.618;
+  const e15 = price + X*0.5, e20 = price + X, e26 = price + X*1.618, stop = f618*0.97;
+  const inZ = price >= f618 && price <= f50, nearZ = price > f50 && price <= f50*1.06;
+  return { f50, f618, e15, e20, e26, stop, inZ, nearZ, zs: inZ?3:nearZ?2:1, rwd: ((e15-price)/price)*100, X, pA: lo, pB: hi };
+}
+
+// SCAN
+async function runScan() {
+  const btn = document.getElementById('scbtn'), ld = document.getElementById('ldiv'),
+        lt = document.getElementById('ltxt'), res = document.getElementById('res'),
+        sb = document.getElementById('sbr'), rh = document.getElementById('rhd'), em = document.getElementById('em');
+  btn.disabled = true; ld.style.display = 'block'; res.innerHTML = '';
+  sb.style.display = 'none'; rh.style.display = 'none'; em.style.display = 'none'; SDA = [];
+
+  const seen = new Set(), tt = {};
+  AT.forEach(k => [...THEMES[k].t, ...THEMES[k].x].forEach(tk => {
+    seen.add(tk); if (!tt[tk]) tt[tk] = []; if (!tt[tk].includes(THEMES[k].l)) tt[tk].push(THEMES[k].l);
+  }));
+
+  lt.textContent = `Scanning ${seen.size} stocks...`;
+
+  try {
+    const r = await fetch('/api/scan', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ tickers: [...seen] })
+    });
+    const data = await r.json();
+    if (data.stocks) {
+      data.stocks.forEach(s => {
+        const fib = calcFib(s.price, s.high52, s.low52);
+        SDA.push({ ticker: s.ticker, name: s.name || s.ticker, price: s.price, cp: s.changePct || 0, themes: tt[s.ticker] || [], ...fib });
+      });
+    }
+  } catch(e) {
+    em.textContent = 'Could not connect to server. Make sure the app is running.';
+    em.style.display = 'block';
+    ld.style.display = 'none'; btn.disabled = false; return;
+  }
+
+  ld.style.display = 'none'; btn.disabled = false;
+  if (!SDA.length) { em.textContent = 'No stock data returned. Check server logs.'; em.style.display = 'block'; return; }
+  SDA.sort((a,b) => b.zs - a.zs || b.rwd - a.rwd);
+  renderCards(SDA);
+  document.getElementById('rcc').textContent = SDA.length;
+  sb.style.display = 'flex'; rh.style.display = 'flex';
+}
+
+function makeCard(s) {
+  const c = document.createElement('div'); c.className = `card ${s.inZ?'hot':s.nearZ?'near':'wait'}`;
+  const cs = s.cp >= 0 ? 'pos' : 'neg', cstr = `${s.cp>=0?'+':''}${s.cp.toFixed(2)}%`;
+  let bdg, bc; if(s.inZ){bdg='🟢 IN BUY ZONE';bc='bh';}else if(s.nearZ){bdg='🟡 APPROACHING';bc='bw';}else{bdg='⚪ WAIT';bc='bn';}
+  const tot = s.pB - s.pA || 1;
+  const zL = Math.max(1, Math.min(90, ((s.f618-s.pA)/tot)*100));
+  const zR = Math.max(3, Math.min(92, ((s.f50-s.pA)/tot)*100));
+  const zW = Math.max(2, zR-zL), pin = Math.min(96, Math.max(4, ((s.price-s.pA)/tot)*100));
+  const pc = s.inZ ? 'var(--green)' : s.nearZ ? 'var(--yellow)' : 'white';
+  const ia = WL.find(w => w.ticker === s.ticker);
+  c.innerHTML = `
+    <div class="ct">
+      <div><div class="sticker">${s.ticker}</div><div class="sname">${(s.themes||[]).join(' · ')}</div></div>
+      <div class="sr2"><div class="sp">$${s.price.toFixed(2)}</div><div class="sc ${cs}">${cstr}</div></div>
+    </div>
+    <div class="badge ${bc}">${bdg}</div>
+    <div class="zw">
+      <div class="zlbl">Fib Zone (.500 to .618) — Pin = Current Price</div>
+      <div class="zbar2">
+        <div class="zfill" style="left:${zL}%;width:${zW}%"></div>
+        <span class="ztxt" style="left:${zL+0.5}%;color:var(--green)">.618=$${s.f618.toFixed(0)}</span>
+        <span class="ztxt" style="right:${100-zR+0.5}%;color:var(--yellow)">.500=$${s.f50.toFixed(0)}</span>
+        <div class="pin" style="left:${pin}%;background:${pc}"><div class="pinlbl" style="color:${pc}">$${s.price.toFixed(0)}</div></div>
+      </div>
+    </div>
+    <div class="lgrid">
+      <div class="lbox"><div class="ll">🎯 .618 Entry (Best)</div><div class="lv" style="color:var(--green)">$${s.f618.toFixed(2)}</div><div class="ls">deepest pullback</div></div>
+      <div class="lbox"><div class="ll">🎯 .500 Entry (Safe)</div><div class="lv" style="color:var(--yellow)">$${s.f50.toFixed(2)}</div><div class="ls">shallower pullback</div></div>
+      <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${s.stop.toFixed(2)}</div><div class="ls">3% below .618</div></div>
+      <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${s.e15.toFixed(2)}</div><div class="ls">take half profit</div></div>
+      <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${s.e20.toFixed(2)}</div><div class="ls">let rest run</div></div>
+      <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${s.e26.toFixed(2)}</div><div class="ls">golden ratio</div></div>
+    </div>
+    <div class="cbot">
+      <span class="rtag">T1 reward: +${s.rwd.toFixed(0)}%</span>
+      <button class="wbtn ${ia?'saved':''}" onclick="toggleW(event,'${s.ticker}')">${ia?'✓ Saved':'+ Watchlist'}</button>
+    </div>`;
+  return c;
+}
+
+function renderCards(data) { const div = document.getElementById('res'); div.innerHTML = ''; data.forEach(s => div.appendChild(makeCard(s))); }
+
+function sortC(by, btn) {
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+  const s = [...SDA];
+  if(by==='zone') s.sort((a,b) => b.zs-a.zs||b.rwd-a.rwd);
+  if(by==='chg') s.sort((a,b) => Math.abs(b.cp)-Math.abs(a.cp));
+  if(by==='rwd') s.sort((a,b) => b.rwd-a.rwd);
+  renderCards(s);
+}
+
+function toggleW(e, tk) {
+  e.stopPropagation(); const btn = e.target, s = SDA.find(x => x.ticker === tk); if(!s) return;
+  const i = WL.findIndex(w => w.ticker === tk);
+  if(i>=0){WL.splice(i,1);btn.textContent='+ Watchlist';btn.classList.remove('saved');}
+  else{WL.push(s);btn.textContent='✓ Saved';btn.classList.add('saved');}
+  renderWL();
+}
+
+// TRENDING
+async function loadTrending() {
+  const btn = document.getElementById('tbtn'), area = document.getElementById('tarea');
+  btn.disabled = true; btn.textContent = 'Loading...';
+  area.innerHTML = '<div style="text-align:center;padding:30px;font-family:\'DM Mono\',monospace;font-size:0.72rem;color:var(--muted2);">Analyzing options volume & market activity...<div class="lbar" style="margin:12px auto;max-width:300px;"><div class="lfill"></div></div></div>';
+  try {
+    const r = await fetch('/api/trending', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const data = await r.json();
+    renderTrending(data.stocks || []);
+  } catch(e) { area.innerHTML = '<p style="color:var(--muted);font-size:0.8rem;padding:20px;">Could not load. Check server.</p>'; }
+  btn.disabled = false; btn.textContent = '🔄 Refresh';
+}
+
+function renderTrending(data) {
+  const area = document.getElementById('tarea'); area.innerHTML = '';
+  const g = document.createElement('div'); g.className = 'tgrid';
+  data.forEach(s => {
+    const sc = s.composite || 50;
+    const col = sc>=70?'var(--red)':sc>=45?'var(--yellow)':'var(--blue)';
+    const bz = sc>=70?'🔥 Extreme':sc>=45?'⚡ High':'📊 Normal';
+    const cs = (s.changePct||0)>=0?'var(--green)':'var(--red)';
+    const ia = WL.find(w => w.ticker === s.ticker);
+    const c = document.createElement('div'); c.className = 'tcard';
+    c.innerHTML = `
+      <div class="tcktick">${s.ticker}</div>
+      <div class="tcname">${s.name||''}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.85rem">$${(s.price||0).toFixed(2)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:${cs};margin-bottom:5px">${(s.changePct||0)>=0?'+':''}${(s.changePct||0).toFixed(2)}%</div>
+      <div style="font-size:0.62rem;font-weight:700;color:${col};margin-bottom:3px">${bz}</div>
+      <div class="scbar"><div class="scfill" style="width:${sc}%;background:${col}"></div></div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.52rem;color:${col};text-align:right;margin-bottom:3px">${sc}/100</div>
+      <div style="font-size:0.6rem;color:var(--muted2);margin-bottom:5px">${s.reason||''}</div>
+      <div class="mstats">
+        <div class="mstat"><div class="mslbl">OPTIONS</div><div class="msval" style="color:var(--blue)">${s.optScore||'–'}</div></div>
+        <div class="mstat"><div class="mslbl">P/C RATIO</div><div class="msval">${s.pcRatio||'–'}</div></div>
+        <div class="mstat"><div class="mslbl">MOMENTUM</div><div class="msval" style="color:var(--green)">${s.momScore||'–'}</div></div>
+        <div class="mstat"><div class="mslbl">SQUEEZE</div><div class="msval">${s.ivScore||'–'}</div></div>
+      </div>
+      <button class="taddbtn ${ia?'saved':''}" id="tadd_${s.ticker}" onclick="addFromTrend('${s.ticker}',${s.price||0},'${s.name||s.ticker}')">${ia?'✓ Saved':'+ Watchlist'}</button>`;
+    g.appendChild(c);
+  });
+  area.appendChild(g);
+}
+
+function addFromTrend(tk, price, name) {
+  const btn = document.getElementById('tadd_' + tk);
+  if (!WL.find(w => w.ticker === tk)) {
+    WL.push({ ticker:tk, price, name, fromT:true });
+    if(btn){btn.textContent='✓ Saved';btn.classList.add('saved');}
+    toast(`${tk} saved`); renderWL();
+  }
+}
+
+// LEARNING LOG
+async function loadLearningLog() {
+  const div = document.getElementById('learnContent');
+  div.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:20px 0;">Loading...</div>';
+  try {
+    const r = await fetch('/api/learning-history');
+    const d = await r.json();
+    div.innerHTML = `
+      <div class="learn-card">
+        <h3>📊 Scanner Status</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green)">${d.version}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted)">CRITERIA VERSION</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--blue)">${d.totalRulesLearned}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted)">PATTERNS LEARNED</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--yellow)">${d.missedStocksAnalyzed.length}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted)">STOCKS ANALYZED</div>
+          </div>
+        </div>
+      </div>
+      <div class="learn-card">
+        <h3>📋 Current Scanning Rules</h3>
+        ${d.currentRules.map((r,i) => `
+          <div class="rule-item">
+            <div class="rule-num">${String(i+1).padStart(2,'0')}</div>
+            <div>${i >= 5 ? '<span class="rule-learned">LEARNED</span>' : ''}${r}</div>
+          </div>`).join('')}
+      </div>
+      ${d.missedStocksAnalyzed.length > 0 ? `
+      <div class="learn-card">
+        <h3>🔍 Stocks You Added + Why They Were Missed</h3>
+        ${d.missedStocksAnalyzed.map(s => `
+          <div class="missed-item">
+            <div class="missed-ticker">${s.ticker} <span style="font-family:'DM Sans',sans-serif;font-size:0.7rem;color:var(--muted2);font-weight:400">→ ${s.theme}</span></div>
+            <div class="missed-reason">❌ ${s.missedReason}</div>
+            <div class="missed-rule">✅ New rule: "${s.newRule}"</div>
+          </div>`).join('')}
+      </div>` : ''}
+      <div style="text-align:center;margin-top:16px;">
+        <button onclick="resetCriteria()" style="padding:8px 16px;background:transparent;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:0.72rem;cursor:pointer;">Reset to Default Criteria</button>
+      </div>`;
+  } catch(e) { div.innerHTML = '<p style="color:var(--muted);font-size:0.8rem;padding:20px 0;">Could not load. Check server.</p>'; }
+}
+
+async function resetCriteria() {
+  if (!confirm('Reset all learned criteria back to defaults?')) return;
+  await fetch('/api/criteria/reset', { method:'POST' });
+  toast('Criteria reset to defaults');
+  loadCriteriaInfo(); loadLearningLog();
+}
+
+// WATCHLIST
+function renderWL() {
+  const div = document.getElementById('svd');
+  if (!WL.length) { div.innerHTML = '<p style="color:var(--muted);font-size:0.8rem;padding:20px 0;">No stocks saved yet.</p>'; return; }
+  div.innerHTML = '';
+  WL.forEach(s => {
+    const r = document.createElement('div'); r.className = 'savrow';
+    if (s.fromT || !s.f618) {
+      r.innerHTML = `<div class="savtk">${s.ticker}</div><div class="savzone" style="color:var(--muted2)">Run Scan for Fib levels</div><button class="savrmv" onclick="rmW('${s.ticker}')">✕</button>`;
+    } else {
+      r.innerHTML = `<div class="savtk">${s.ticker}</div><div class="savzone">$${s.f618.toFixed(0)}–$${s.f50.toFixed(0)}</div><div class="savstop">Stop $${s.stop.toFixed(0)}</div><div class="savt1">T1 $${s.e15.toFixed(0)}</div><div class="savt2">T2 $${s.e20.toFixed(0)}</div><button class="savrmv" onclick="rmW('${s.ticker}')">✕</button>`;
+    }
+    div.appendChild(r);
+  });
+}
+function rmW(tk) { WL = WL.filter(w => w.ticker !== tk); renderWL(); renderCards(SDA); }
+
+buildThemeBar();
+</script>
+</body>
+</html>
