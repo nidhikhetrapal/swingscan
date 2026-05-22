@@ -319,7 +319,7 @@ async function doAdd(iid, sid) {
   const t = THEMES[k];
   if (!t.t.includes(tk) && !t.x.includes(tk)) {
     t.x.push(tk); document.getElementById(iid).value = '';
-    buildThemeBar(); buildBrowser();
+    saveCustomThemes(); buildThemeBar(); buildBrowser();
     toast(`✅ ${tk} added to ${t.l} — analyzing why it was missed...`);
     await analyzeMissed(tk, t.l);
   } else {
@@ -436,11 +436,11 @@ function doReassign(toKey) {
   if (!rTK) return;
   const f = THEMES[rFK]; f.t = f.t.filter(x => x !== rTK); f.x = f.x.filter(x => x !== rTK);
   const t = THEMES[toKey]; if (!t.t.includes(rTK) && !t.x.includes(rTK)) t.x.push(rTK);
-  closeR(); buildBrowser(); buildThemeBar(); toast(`${rTK} moved to ${THEMES[toKey].l}`);
+  saveCustomThemes(); closeR(); buildBrowser(); buildThemeBar(); toast(`${rTK} moved to ${THEMES[toKey].l}`);
 }
 function doRmFromTheme() {
   if (!rTK) return; const f = THEMES[rFK]; f.t = f.t.filter(x => x !== rTK); f.x = f.x.filter(x => x !== rTK);
-  closeR(); buildBrowser(); buildThemeBar();
+  saveCustomThemes(); closeR(); buildBrowser(); buildThemeBar();
 }
 function closeR() { document.getElementById('rpop').style.display = 'none'; rTK = null; rFK = null; }
 document.addEventListener('click', e => { const p = document.getElementById('rpop'); if(p.style.display === 'block' && !p.contains(e.target) && !e.target.classList.contains('chip')) closeR(); });
@@ -680,6 +680,32 @@ function renderWL() {
 }
 function rmW(tk) { WL = WL.filter(w => w.ticker !== tk); renderWL(); renderCards(SDA); }
 
+// Load saved custom stocks from localStorage
+function loadSavedThemes() {
+  try {
+    const saved = localStorage.getItem('swingscan_custom_stocks');
+    if (saved) {
+      const data = JSON.parse(saved);
+      Object.entries(data).forEach(([key, stocks]) => {
+        if (THEMES[key]) {
+          THEMES[key].x = stocks;
+        }
+      });
+    }
+  } catch(e) {}
+}
+
+function saveCustomThemes() {
+  try {
+    const data = {};
+    Object.entries(THEMES).forEach(([key, t]) => {
+      if (t.x.length > 0) data[key] = t.x;
+    });
+    localStorage.setItem('swingscan_custom_stocks', JSON.stringify(data));
+  } catch(e) {}
+}
+
+loadSavedThemes();
 buildThemeBar();
 </script>
 </body>

@@ -9,12 +9,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// ── ANTHROPIC CLIENT ──
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── CRITERIA ENGINE ──
 const CRITERIA_FILE = path.join(__dirname, 'data', 'criteria.json');
 
 const DEFAULT_CRITERIA = {
@@ -49,121 +45,121 @@ function saveCriteria(criteria) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     criteria.lastUpdated = new Date().toISOString().split('T')[0];
     fs.writeFileSync(CRITERIA_FILE, JSON.stringify(criteria, null, 2));
-    console.log(`✅ Criteria updated to v${criteria.version}`);
+    console.log('Criteria updated to v' + criteria.version);
   } catch (e) {
     console.error('Failed to save criteria:', e.message);
   }
 }
 
-// ── CLAUDE API HELPER ──
-async function askClaude(prompt, maxTokens = 1000) {
+async function askClaude(prompt, maxTokens) {
+  const tokens = maxTokens || 1000;
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-5',
-    max_tokens: maxTokens,
+    max_tokens: tokens,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
     messages: [{ role: 'user', content: prompt }],
   });
-  return msg.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('');
+  return msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
-function extractJSON(text, type = 'array') {
-  const clean = text.replace(/```json?/gi, '').replace(/```/g, '').trim();
-  const pattern = type === 'array' ? /\[[\s\S]*\]/ : /\{[\s\S]*\}/;
-  const match = clean.match(pattern);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]);
-  } catch (e) {
-    return null;
+// Robust JSON extractor — handles Claude wrapping text around JSON
+function extractJSON(text, type) {
+  const isArray = type === 'array';
+  const clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  
+  if (isArray) {
+    const start = clean.indexOf('[');
+    const end = clean.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+      try { return JSON.parse(clean.slice(start, end + 1)); } catch(e) {}
+    }
+  } else {
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      try { return JSON.parse(clean.slice(start, end + 1)); } catch(e) {}
+    }
   }
+  return null;
 }
-
-// ── ROUTES ──
 
 // Health check
 app.get('/api/health', (req, res) => {
-  const criteria = loadCriteria();
-  res.json({
-    status: 'ok',
-    criteriaVersion: criteria.version,
-    learnedPatterns: criteria.learnedPatterns.length,
-    lastUpdated: criteria.lastUpdated,
-  });
+  const c = loadCriteria();
+  res.json({ status: 'ok', criteriaVersion: c.version, learnedPatterns: c.learnedPatterns.length });
 });
 
-// Get current criteria
-app.get('/api/criteria', (req, res) => {
-  res.json(loadCriteria());
-});
+// Get criteria
+app.get('/api/criteria', (req, res) => res.json(loadCriteria()));
 
-// Scan stocks — fetch real prices and calculate Fibonacci levels
+// Scan stocks
 app.post('/api/scan', async (req, res) => {
   const { tickers } = req.body;
-  if (!tickers || !tickers.length) {
-    return res.status(400).json({ error: 'No tickers provided' });
-  }
+  if (!tickers || !tickers.length) return res.status(400).json({ error: 'No tickers' });
 
-  const criteria = loadCriteria();
   const batches = [];
-  for (let i = 0; i < tickers.length; i += 8) {
-    batches.push(tickers.slice(i, i + 8));
-  }
+  for (let i = 0; i < tickers.length; i += 6) batches.push(tickers.slice(i, i + 6));
 
   const allData = [];
+  const today = new Date().toISOString().split('T')[0];
 
   for (const batch of batches) {
-    const prompt = `Search for current stock market data for these tickers: ${batch.join(', ')}
+    const prompt = `Today is ${today}. Search the web right now for live stock market data.
 
-Current scanning criteria being used:
-${criteria.rules.join('\n')}
+Look up each of these stock tickers on Yahoo Finance or Google: ${batch.join(', ')}
 
-For each ticker return current price, today's % change, 52-week high, 52-week low, and company name.
-Return ONLY a JSON array, no markdown, no backticks, no explanation:
-[{"ticker":"NVDA","name":"NVIDIA Corp","price":135.50,"changePct":2.3,"high52":180.0,"low52":80.0}]
-If a ticker is invalid or delisted, skip it.`;
+For each stock I need today's live data:
+1. Current stock price (as of today ${today})
+2. Today's percentage change
+3. 52-week high price
+4. 52-week low price
+5. Company full name
+
+Return ONLY a JSON array. No markdown. No explanation. Just the array:
+[{"ticker":"AAPL","name":"Apple Inc","price":211.50,"changePct":0.5,"high52":260.10,"low52":169.21},{"ticker":"NVDA","name":"NVIDIA Corp","price":135.20,"changePct":1.2,"high52":190.00,"low52":75.00}]
+
+Search the web for each ticker to get accurate current prices. Skip any ticker that does not exist.`;
 
     try {
-      const raw = await askClaude(prompt);
+      console.log('Scanning batch:', batch.join(','));
+      const raw = await askClaude(prompt, 1200);
+      console.log('Raw response sample:', raw.substring(0, 200));
       const parsed = extractJSON(raw, 'array');
-      if (parsed) {
-        parsed
-          .filter((s) => s && s.ticker && s.price && s.high52 && s.low52)
-          .forEach((s) => allData.push(s));
+      if (parsed && Array.isArray(parsed)) {
+        parsed.filter(s => s && s.ticker && s.price && s.high52 && s.low52).forEach(s => allData.push(s));
       }
     } catch (e) {
-      console.error(`Batch error for ${batch}:`, e.message);
+      console.error('Batch error:', batch.join(','), e.message);
     }
   }
 
-  res.json({ stocks: allData, criteriaVersion: criteria.version });
+  console.log('Total stocks fetched:', allData.length);
+  res.json({ stocks: allData, criteriaVersion: loadCriteria().version });
 });
 
-// Most Active — options volume + momentum + squeeze scoring
+// Trending stocks
 app.post('/api/trending', async (req, res) => {
   const criteria = loadCriteria();
+  const today = new Date().toISOString().split('T')[0];
 
-  const prompt = `Find the 20 most actively traded US stocks RIGHT NOW based on:
-- Unusual options volume (calls and puts significantly above average)
-- High put/call ratio or extreme bullish call buying  
-- Strong price momentum this week
-- Short squeeze potential (high short interest + rising price)
-- Recent news catalysts
+  const prompt = `Today is ${today}. Search the web for the most actively traded US stocks right now.
 
-Current learned criteria that matter to this trader:
-${criteria.learnedPatterns.length > 0 ? criteria.learnedPatterns.join('\n') : 'Standard momentum and options activity'}
+Find 15-20 stocks with the highest unusual options activity, momentum, and buzz today.
 
-For each stock calculate a composite activity score 0-100:
-- Options volume spike vs 30-day avg: 35% of score
-- Price momentum this week: 25% of score
-- Stock volume vs average: 25% of score  
-- Short squeeze/IV signal: 15% of score
+For each stock provide:
+- Current price
+- Today % change
+- Options activity score 0-100
+- Momentum score 0-100
+- Volume vs average score 0-100
+- Squeeze/IV score 0-100
+- Composite score (optScore*0.35 + momScore*0.25 + volScore*0.25 + ivScore*0.15)
+- Put/call ratio
+- Sentiment (bullish/bearish/neutral)
+- Main reason for activity
 
-Return ONLY a JSON array, no markdown:
-[{"ticker":"NVDA","name":"NVIDIA Corp","price":135.50,"changePct":2.3,"optScore":85,"momScore":70,"volScore":65,"ivScore":55,"composite":74,"pcRatio":"0.7","sentiment":"heavy call buying","reason":"Computex keynote + earnings beat","catalysts":["Jensen keynote June 1","Q1 earnings beat"]}]
-Sort by composite score descending.`;
+Return ONLY a JSON array sorted by composite score descending:
+[{"ticker":"NVDA","name":"NVIDIA Corp","price":135.20,"changePct":2.3,"optScore":85,"momScore":70,"volScore":65,"ivScore":55,"composite":74,"pcRatio":"0.7","sentiment":"bullish calls","reason":"Computex keynote upcoming","catalysts":["Jensen keynote June 1"]}]`;
 
   try {
     const raw = await askClaude(prompt, 1500);
@@ -174,81 +170,54 @@ Sort by composite score descending.`;
   }
 });
 
-// Feedback — self-improvement when user adds a stock manually
+// Feedback — self-improvement
 app.post('/api/feedback', async (req, res) => {
   const { ticker, theme } = req.body;
-  if (!ticker) return res.status(400).json({ error: 'No ticker provided' });
+  if (!ticker) return res.status(400).json({ error: 'No ticker' });
 
   const criteria = loadCriteria();
+  const today = new Date().toISOString().split('T')[0];
 
-  const prompt = `A swing trader manually added the stock ticker "${ticker}" to their "${theme}" watchlist category.
+  const prompt = `Today is ${today}. A swing trader manually added the stock "${ticker}" to their "${theme}" watchlist.
 
-This means our scanner MISSED this stock. The current scanning criteria was:
-${criteria.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
+This means our AI scanner MISSED this stock. Our current scanning rules were:
+${criteria.rules.map((r, i) => (i + 1) + '. ' + r).join('\n')}
 
-Previously learned patterns:
-${criteria.learnedPatterns.length > 0 ? criteria.learnedPatterns.join('\n') : 'None yet'}
+Please search the web for information about ${ticker} and answer:
+1. What company is ${ticker}? What sector? What does it do?
+2. What is its current stock price today?
+3. WHY did our scanner miss it? Which specific rule failed to catch it?
+4. What ONE new rule should we add to catch stocks like this in future?
+5. Rate it as a swing trade right now from 0-100
+6. What are 2-3 key catalysts making it interesting?
 
-Please:
-1. Search for current information about ${ticker} — what is this company, what sector, what's been happening with it?
-2. Analyze WHY the current criteria would have missed it (be specific and honest)
-3. Write ONE new specific rule to add to the scanning criteria to catch stocks like this in future scans
-4. Rate this stock as a swing trade opportunity right now (0-100 confidence)
-5. List 2-3 key catalysts or reasons this stock is interesting
-
-Return ONLY this JSON object, no markdown:
-{
-  "ticker": "${ticker}",
-  "companyName": "Full company name",
-  "sector": "Sector name",
-  "currentPrice": 0.00,
-  "missedReason": "2-3 sentence explanation of exactly why our scanner missed this stock",
-  "newRule": "Specific new rule to add to scanning criteria",
-  "stockSummary": "2 sentence summary of what this company does and why it's interesting for swing trading",
-  "confidence": 75,
-  "catalysts": ["catalyst 1", "catalyst 2"],
-  "themeRecommendation": "Best theme this stock fits into"
-}`;
+Return ONLY this JSON object (no markdown, no backticks):
+{"ticker":"${ticker}","companyName":"Full Name","sector":"Sector","currentPrice":100.00,"missedReason":"Specific reason why scanner missed this","newRule":"New scanning rule to add","stockSummary":"What company does and why interesting for swing trading","confidence":70,"catalysts":["catalyst1","catalyst2"],"themeRecommendation":"${theme}"}`;
 
   try {
+    console.log('Feedback for:', ticker);
     const raw = await askClaude(prompt, 1200);
+    console.log('Feedback raw:', raw.substring(0, 300));
     const feedback = extractJSON(raw, 'object');
+    console.log('Feedback parsed:', JSON.stringify(feedback));
 
-    if (feedback && feedback.newRule) {
-      // Update criteria with the learning
-      const newRule = feedback.newRule.trim();
-      const alreadyExists = criteria.rules.some(
-        (r) => r.toLowerCase().includes(newRule.toLowerCase().substring(0, 30))
-      );
-
-      if (!alreadyExists) {
-        criteria.rules.push(newRule);
-        criteria.learnedPatterns.push(
-          `[v${criteria.version + 1}] Added after user added ${ticker}: ${newRule}`
-        );
-        criteria.missedStocks.push({
-          ticker,
-          theme,
-          addedAt: new Date().toISOString(),
-          missedReason: feedback.missedReason,
-          newRule,
-        });
-        criteria.version++;
-        saveCriteria(criteria);
+    if (feedback && (feedback.missedReason || feedback.stockSummary)) {
+      if (feedback.newRule) {
+        const newRule = feedback.newRule.trim();
+        const exists = criteria.rules.some(r => r.toLowerCase().includes(newRule.toLowerCase().substring(0, 25)));
+        if (!exists) {
+          criteria.rules.push(newRule);
+          criteria.learnedPatterns.push('[v' + (criteria.version + 1) + '] After adding ' + ticker + ': ' + newRule);
+          criteria.missedStocks.push({ ticker, theme, addedAt: new Date().toISOString(), missedReason: feedback.missedReason, newRule });
+          criteria.version++;
+          saveCriteria(criteria);
+        }
+        res.json({ ...feedback, criteriaUpdated: !exists, newCriteriaVersion: criteria.version });
+      } else {
+        res.json({ ...feedback, criteriaUpdated: false, newCriteriaVersion: criteria.version });
       }
-
-      res.json({
-        ...feedback,
-        criteriaUpdated: !alreadyExists,
-        newCriteriaVersion: criteria.version,
-      });
     } else {
-      res.json({
-        ticker,
-        missedReason: 'Could not analyze why this stock was missed.',
-        newRule: null,
-        criteriaUpdated: false,
-      });
+      res.json({ ticker, companyName: ticker, missedReason: 'Analysis failed — try again', newRule: null, criteriaUpdated: false, confidence: 50 });
     }
   } catch (e) {
     console.error('Feedback error:', e.message);
@@ -256,31 +225,16 @@ Return ONLY this JSON object, no markdown:
   }
 });
 
-// Get history of missed stocks + what was learned
+// Learning history
 app.get('/api/learning-history', (req, res) => {
-  const criteria = loadCriteria();
-  res.json({
-    version: criteria.version,
-    totalRulesLearned: criteria.learnedPatterns.length,
-    missedStocksAnalyzed: criteria.missedStocks || [],
-    currentRules: criteria.rules,
-    learnedPatterns: criteria.learnedPatterns,
-  });
+  const c = loadCriteria();
+  res.json({ version: c.version, totalRulesLearned: c.learnedPatterns.length, missedStocksAnalyzed: c.missedStocks || [], currentRules: c.rules, learnedPatterns: c.learnedPatterns });
 });
 
-// Reset criteria to defaults
+// Reset criteria
 app.post('/api/criteria/reset', (req, res) => {
   saveCriteria({ ...DEFAULT_CRITERIA });
-  res.json({ message: 'Criteria reset to defaults', version: 1 });
+  res.json({ message: 'Reset to defaults', version: 1 });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`
-  ╔═══════════════════════════════════╗
-  ║   SwingScan is running! 🚀        ║
-  ║   Port: ${PORT}                      ║
-  ║   Criteria v${loadCriteria().version}                     ║
-  ╚═══════════════════════════════════╝
-  `);
-});
+app.listen(PORT, () => console.log('SwingScan running on port ' + PORT));
