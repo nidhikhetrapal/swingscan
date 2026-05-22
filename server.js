@@ -58,7 +58,7 @@ function saveCriteria(criteria) {
 // ── CLAUDE API HELPER ──
 async function askClaude(prompt, maxTokens = 1000) {
   const msg = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: maxTokens,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }],
     messages: [{ role: 'user', content: prompt }],
