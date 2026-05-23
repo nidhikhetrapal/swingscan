@@ -67,6 +67,22 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .bh{background:rgba(0,245,160,0.1);color:var(--green);border:1px solid rgba(0,245,160,0.3);}
 .bw{background:rgba(255,209,102,0.1);color:var(--yellow);border:1px solid rgba(255,209,102,0.3);}
 .bn{background:rgba(90,100,133,0.2);color:var(--muted2);border:1px solid var(--border);}
+.bm{background:rgba(0,150,255,0.12);color:#60cfff;border:1px solid rgba(0,150,255,0.4);}
+.bc2{background:rgba(155,93,229,0.12);color:var(--purple);border:1px solid rgba(155,93,229,0.35);}
+.bext{background:rgba(247,127,0,0.12);color:var(--orange);border:1px solid rgba(247,127,0,0.35);}
+.bf{background:rgba(76,201,240,0.1);color:var(--blue);border:1px solid rgba(76,201,240,0.25);}
+.breakout-card::before{background:var(--blue)!important;}
+.coil-card::before{background:var(--purple)!important;}
+.ext-card::before{background:var(--orange)!important;}
+.forming-card::before{background:var(--blue)!important;}
+.mom-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:10px;}
+.mom-title{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.mom-score{display:flex;align-items:center;gap:10px;margin-bottom:5px;}
+.mom-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.mom-fill{height:100%;border-radius:2px;}
+.mom-num{font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:700;flex-shrink:0;}
+.mom-details{display:flex;flex-wrap:wrap;gap:4px;}
+.mom-detail{font-size:0.6rem;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--muted2);}
 .zw{margin-bottom:10px;}
 .zlbl{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
 .zbar2{position:relative;height:26px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:visible;}
@@ -506,75 +522,130 @@ async function runScan() {
 }
 
 function makeCard(s) {
-  const c = document.createElement('div'); c.className = `card ${s.inZ?'hot':s.nearZ?'near':'wait'}`;
-  const cs = s.cp >= 0 ? 'pos' : 'neg', cstr = `${s.cp>=0?'+':''}${s.cp.toFixed(2)}%`;
-  // Momentum signal overrides Fib zone signal if breakout detected
-  let bdg, bc;
+  const c = document.createElement('div');
   const mom = s.momentum || {};
-  if (mom.signal === 'BREAKOUT') {
-    bdg = '🚀 MOMENTUM BREAKOUT — Use Extension Targets'; bc = 'bm';
-  } else if (mom.signal === 'COILING') {
-    bdg = '⚡ COILING — Watch for Breakout'; bc = 'bc2';
-  } else if (s.inZ) {
-    bdg = '🟢 IN FIB BUY ZONE'; bc = 'bh';
-  } else if (s.nearZ) {
-    bdg = '🟡 APPROACHING FIB ZONE'; bc = 'bw';
+  const sig = mom.signal || 'WAIT';
+
+  // Determine card class and badge based on momentum signal
+  let cardClass, bdg, bc;
+  if (sig === 'BREAKOUT') {
+    cardClass = 'card breakout-card'; bdg = '🚀 MOMENTUM BREAKOUT'; bc = 'bm';
+  } else if (sig === 'COILING') {
+    cardClass = 'card coil-card'; bdg = '⚡ COILING — Set Alert at $' + (mom.alertLevel||''); bc = 'bc2';
+  } else if (sig === 'EXTENDED') {
+    cardClass = 'card ext-card'; bdg = '📏 EXTENDED — Wait for Retest'; bc = 'bext';
+  } else if (sig === 'FIB_ZONE') {
+    cardClass = 'card hot'; bdg = '🟢 IN FIB BUY ZONE'; bc = 'bh';
+  } else if (sig === 'APPROACHING') {
+    cardClass = 'card near'; bdg = '🟡 APPROACHING FIB ZONE'; bc = 'bw';
+  } else if (sig === 'FORMING') {
+    cardClass = 'card forming-card'; bdg = '🔍 SIGNALS FORMING — Monitor'; bc = 'bf';
   } else {
-    bdg = '⚪ WAIT'; bc = 'bn';
+    cardClass = 'card wait'; bdg = '⚪ WAIT — ' + (mom.reason || 'No setup'); bc = 'bn';
   }
-  const tot = s.pB - s.pA || 1;
-  const zL = Math.max(1, Math.min(90, ((s.f618-s.pA)/tot)*100));
-  const zR = Math.max(3, Math.min(92, ((s.f50-s.pA)/tot)*100));
-  const zW = Math.max(2, zR-zL), pin = Math.min(96, Math.max(4, ((s.price-s.pA)/tot)*100));
-  const pc = s.inZ ? 'var(--green)' : s.nearZ ? 'var(--yellow)' : 'white';
+
+  c.className = cardClass;
+  const cs = (s.cp||0) >= 0 ? 'pos' : 'neg';
+  const cstr = `${(s.cp||0)>=0?'+':''}${(s.cp||0).toFixed(2)}%`;
+
+  // Build levels section based on signal
+  let levelsHtml = '';
+
+  if (sig === 'BREAKOUT' || sig === 'COILING') {
+    // Show: consolidation box, alert level, then extension targets from consol low
+    const consolLow  = mom.consolLow  || s.low52;
+    const consolHigh = mom.consolHigh || s.high52;
+    const X = s.high52 - s.low52; // use Fib range for targets
+    const t1 = s.price + X * 0.5;
+    const t2 = s.price + X;
+    const t3 = s.price + X * 1.618;
+    const stop = consolLow * 0.97;
+
+    levelsHtml = `
+      <div class="lgrid">
+        <div class="lbox"><div class="ll">📦 Box Top (Resistance)</div><div class="lv" style="color:var(--blue)">$${consolHigh.toFixed(2)}</div><div class="ls">20-day consolidation high</div></div>
+        <div class="lbox"><div class="ll">🎯 Alert Level</div><div class="lv" style="color:var(--purple)">$${(mom.alertLevel||consolHigh*1.03).toFixed(2)}</div><div class="ls">3% above box — entry trigger</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below box bottom</div></div>
+        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">take half profit</div></div>
+        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${t2.toFixed(2)}</div><div class="ls">let rest run</div></div>
+        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${t3.toFixed(2)}</div><div class="ls">golden ratio</div></div>
+      </div>`;
+  } else if (sig === 'EXTENDED') {
+    const retestLevel = mom.consolHigh || s.high52 * 0.95;
+    const stop = retestLevel * 0.97;
+    const X = s.high52 - s.low52;
+    const t1 = s.price + X * 0.3;
+    levelsHtml = `
+      <div class="lgrid">
+        <div class="lbox"><div class="ll">🎯 Retest Zone (Buy on dip)</div><div class="lv" style="color:var(--green)">$${retestLevel.toFixed(2)}</div><div class="ls">wait for pullback here</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop if Retesting</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below retest zone</div></div>
+        <div class="lbox"><div class="ll">💰 Target if Retest Holds</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">conservative target</div></div>
+        <div class="lbox"><div class="ll">📏 Currently Extended</div><div class="lv" style="color:var(--orange)">${mom.pctAboveConsol||0}% above box</div><div class="ls">do not chase here</div></div>
+      </div>`;
+  } else {
+    // Default: show Fib retracement levels
+    const X = s.high52 - s.low52;
+    const fib50  = s.high52 - X * 0.5;
+    const fib618 = s.high52 - X * 0.618;
+    const stop   = fib618 * 0.97;
+    const t1 = s.price + X * 0.5;
+    const t2 = s.price + X;
+    const t3 = s.price + X * 1.618;
+    levelsHtml = `
+      <div class="lgrid">
+        <div class="lbox"><div class="ll">🎯 .618 Entry (Best)</div><div class="lv" style="color:var(--green)">$${fib618.toFixed(2)}</div><div class="ls">deepest pullback</div></div>
+        <div class="lbox"><div class="ll">🎯 .500 Entry (Safe)</div><div class="lv" style="color:var(--yellow)">$${fib50.toFixed(2)}</div><div class="ls">shallower pullback</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below .618</div></div>
+        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">take half profit</div></div>
+        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${t2.toFixed(2)}</div><div class="ls">let rest run</div></div>
+        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${t3.toFixed(2)}</div><div class="ls">golden ratio</div></div>
+      </div>`;
+  }
+
+  // Momentum details box
+  const momColor = sig==='BREAKOUT'?'var(--blue)':sig==='COILING'?'var(--purple)':sig==='FIB_ZONE'?'var(--green)':sig==='EXTENDED'?'var(--orange)':'var(--muted2)';
+  const momBox = `
+    <div class="mom-box">
+      <div class="mom-title">Signal Analysis — ${sig} · Score ${mom.score||0}/100</div>
+      <div class="mom-score">
+        <div class="mom-bar"><div class="mom-fill" style="width:${mom.score||0}%;background:${momColor}"></div></div>
+        <div class="mom-num" style="color:${momColor}">${mom.score||0}</div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--muted2);margin-bottom:5px;">${mom.reason||''}</div>
+      <div class="mom-details">${(mom.details||[]).map(d=>`<span class="mom-detail">${d}</span>`).join('')}</div>
+    </div>`;
+
   const ia = WL.find(w => w.ticker === s.ticker);
+
   c.innerHTML = `
     <div class="ct">
       <div><div class="sticker">${s.ticker}</div><div class="sname">${(s.themes||[]).join(' · ')}</div></div>
       <div class="sr2"><div class="sp">$${s.price.toFixed(2)}</div><div class="sc ${cs}">${cstr}</div></div>
     </div>
     <div class="badge ${bc}">${bdg}</div>
-    ${mom.signal && mom.signal !== 'WAIT' ? `
-    <div class="mom-box">
-      <div class="mom-title">Momentum Signal — ${mom.signal}</div>
-      <div class="mom-score">
-        <div class="mom-bar"><div class="mom-fill" style="width:${mom.score}%;background:${mom.signal==='BREAKOUT'?'var(--blue)':mom.signal==='COILING'?'var(--purple)':'var(--yellow)'}"></div></div>
-        <div class="mom-num" style="color:${mom.signal==='BREAKOUT'?'var(--blue)':mom.signal==='COILING'?'var(--purple)':'var(--yellow)'}">${mom.score}/100</div>
-      </div>
-      <div class="mom-details">${(mom.details||[]).map(d=>`<span class="mom-detail">${d}</span>`).join('')}</div>
-    </div>` : ''}
-    <div class="zw">
-      <div class="zlbl">Fib Zone (.500 to .618) — Pin = Current Price</div>
-      <div class="zbar2">
-        <div class="zfill" style="left:${zL}%;width:${zW}%"></div>
-        <span class="ztxt" style="left:${zL+0.5}%;color:var(--green)">.618=$${s.f618.toFixed(0)}</span>
-        <span class="ztxt" style="right:${100-zR+0.5}%;color:var(--yellow)">.500=$${s.f50.toFixed(0)}</span>
-        <div class="pin" style="left:${pin}%;background:${pc}"><div class="pinlbl" style="color:${pc}">$${s.price.toFixed(0)}</div></div>
-      </div>
-    </div>
-    <div class="lgrid">
-      <div class="lbox"><div class="ll">🎯 .618 Entry (Best)</div><div class="lv" style="color:var(--green)">$${s.f618.toFixed(2)}</div><div class="ls">deepest pullback</div></div>
-      <div class="lbox"><div class="ll">🎯 .500 Entry (Safe)</div><div class="lv" style="color:var(--yellow)">$${s.f50.toFixed(2)}</div><div class="ls">shallower pullback</div></div>
-      <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${s.stop.toFixed(2)}</div><div class="ls">3% below .618</div></div>
-      <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${s.e15.toFixed(2)}</div><div class="ls">take half profit</div></div>
-      <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${s.e20.toFixed(2)}</div><div class="ls">let rest run</div></div>
-      <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${s.e26.toFixed(2)}</div><div class="ls">golden ratio</div></div>
-    </div>
+    ${momBox}
+    ${levelsHtml}
     <div class="cbot">
-      <span class="rtag">T1 reward: +${s.rwd.toFixed(0)}%</span>
+      <span class="rtag">Move: ${s.swingMoveSize||0}% · Vol ${s.volRatio||1}×</span>
       <button class="wbtn ${ia?'saved':''}" onclick="toggleW(event,'${s.ticker}')">${ia?'✓ Saved':'+ Watchlist'}</button>
     </div>`;
   return c;
 }
 
+
 function renderCards(data) { const div = document.getElementById('res'); div.innerHTML = ''; data.forEach(s => div.appendChild(makeCard(s))); }
 
 function sortC(by, btn) {
   document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+  const sigOrder = {'BREAKOUT':6,'FIB_ZONE':5,'COILING':4,'APPROACHING':3,'FORMING':2,'EXTENDED':1,'WAIT':0};
   const s = [...SDA];
-  if(by==='zone') s.sort((a,b) => b.zs-a.zs||b.rwd-a.rwd);
+  if(by==='zone') s.sort((a,b) => {
+    const sa = sigOrder[(a.momentum||{}).signal||'WAIT']||0;
+    const sb = sigOrder[(b.momentum||{}).signal||'WAIT']||0;
+    return sb - sa || (b.momentum?.score||0) - (a.momentum?.score||0);
+  });
   if(by==='chg') s.sort((a,b) => Math.abs(b.cp)-Math.abs(a.cp));
-  if(by==='rwd') s.sort((a,b) => b.rwd-a.rwd);
+  if(by==='rwd') s.sort((a,b) => (b.momentum?.score||0)-(a.momentum?.score||0));
   renderCards(s);
 }
 
