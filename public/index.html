@@ -155,6 +155,16 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .savrmv{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 5px;font-size:0.85rem;}
 .savrmv:hover{color:var(--red);}
 .em{background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:11px 14px;font-size:0.76rem;color:var(--red);margin-bottom:14px;display:none;line-height:1.7;}
+.bm{background:rgba(0,150,255,0.1);color:#60cfff;border:1px solid rgba(0,150,255,0.4);}
+.bc2{background:rgba(155,93,229,0.1);color:var(--purple);border:1px solid rgba(155,93,229,0.3);}
+.mom-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:10px;}
+.mom-title{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.mom-score{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.mom-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.mom-fill{height:100%;border-radius:3px;}
+.mom-num{font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:700;flex-shrink:0;}
+.mom-details{display:flex;flex-wrap:wrap;gap:4px;}
+.mom-detail{font-size:0.6rem;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--muted2);}
 </style>
 </head>
 <body>
@@ -446,7 +456,7 @@ function closeR() { document.getElementById('rpop').style.display = 'none'; rTK 
 document.addEventListener('click', e => { const p = document.getElementById('rpop'); if(p.style.display === 'block' && !p.contains(e.target) && !e.target.classList.contains('chip')) closeR(); });
 
 // FIBONACCI CALCULATION
-function calcFib(price, hi, lo) {
+function calcFib(price, hi, lo, momentum) {
   const X = hi - lo, f50 = hi - X*0.5, f618 = hi - X*0.618;
   const e15 = price + X*0.5, e20 = price + X, e26 = price + X*1.618, stop = f618*0.97;
   const inZ = price >= f618 && price <= f50, nearZ = price > f50 && price <= f50*1.06;
@@ -478,7 +488,7 @@ async function runScan() {
     if (data.stocks) {
       data.stocks.forEach(s => {
         const fib = calcFib(s.price, s.high52, s.low52);
-        SDA.push({ ticker: s.ticker, name: s.name || s.ticker, price: s.price, cp: s.changePct || 0, themes: tt[s.ticker] || [], ...fib });
+        SDA.push({ ticker: s.ticker, name: s.name || s.ticker, price: s.price, cp: s.changePct || 0, themes: tt[s.ticker] || [], momentum: s.momentum || {signal:'WAIT',score:0,details:[]}, ...fib });
       });
     }
   } catch(e) {
@@ -498,7 +508,20 @@ async function runScan() {
 function makeCard(s) {
   const c = document.createElement('div'); c.className = `card ${s.inZ?'hot':s.nearZ?'near':'wait'}`;
   const cs = s.cp >= 0 ? 'pos' : 'neg', cstr = `${s.cp>=0?'+':''}${s.cp.toFixed(2)}%`;
-  let bdg, bc; if(s.inZ){bdg='🟢 IN BUY ZONE';bc='bh';}else if(s.nearZ){bdg='🟡 APPROACHING';bc='bw';}else{bdg='⚪ WAIT';bc='bn';}
+  // Momentum signal overrides Fib zone signal if breakout detected
+  let bdg, bc;
+  const mom = s.momentum || {};
+  if (mom.signal === 'BREAKOUT') {
+    bdg = '🚀 MOMENTUM BREAKOUT — Use Extension Targets'; bc = 'bm';
+  } else if (mom.signal === 'COILING') {
+    bdg = '⚡ COILING — Watch for Breakout'; bc = 'bc2';
+  } else if (s.inZ) {
+    bdg = '🟢 IN FIB BUY ZONE'; bc = 'bh';
+  } else if (s.nearZ) {
+    bdg = '🟡 APPROACHING FIB ZONE'; bc = 'bw';
+  } else {
+    bdg = '⚪ WAIT'; bc = 'bn';
+  }
   const tot = s.pB - s.pA || 1;
   const zL = Math.max(1, Math.min(90, ((s.f618-s.pA)/tot)*100));
   const zR = Math.max(3, Math.min(92, ((s.f50-s.pA)/tot)*100));
@@ -511,6 +534,15 @@ function makeCard(s) {
       <div class="sr2"><div class="sp">$${s.price.toFixed(2)}</div><div class="sc ${cs}">${cstr}</div></div>
     </div>
     <div class="badge ${bc}">${bdg}</div>
+    ${mom.signal && mom.signal !== 'WAIT' ? `
+    <div class="mom-box">
+      <div class="mom-title">Momentum Signal — ${mom.signal}</div>
+      <div class="mom-score">
+        <div class="mom-bar"><div class="mom-fill" style="width:${mom.score}%;background:${mom.signal==='BREAKOUT'?'var(--blue)':mom.signal==='COILING'?'var(--purple)':'var(--yellow)'}"></div></div>
+        <div class="mom-num" style="color:${mom.signal==='BREAKOUT'?'var(--blue)':mom.signal==='COILING'?'var(--purple)':'var(--yellow)'}">${mom.score}/100</div>
+      </div>
+      <div class="mom-details">${(mom.details||[]).map(d=>`<span class="mom-detail">${d}</span>`).join('')}</div>
+    </div>` : ''}
     <div class="zw">
       <div class="zlbl">Fib Zone (.500 to .618) — Pin = Current Price</div>
       <div class="zbar2">
