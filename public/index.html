@@ -286,6 +286,16 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </div>
 
 <script>
+// Safe formatters — show '—' instead of $NaN
+function fmt(v, pre='$', dec=2) {
+  if (v===null||v===undefined||isNaN(v)||!isFinite(v)) return '—';
+  return pre + parseFloat(v).toFixed(dec);
+}
+function fmtPct(v) {
+  if (v===null||v===undefined||isNaN(v)||!isFinite(v)) return '—';
+  return (v>=0?'+':'')+parseFloat(v).toFixed(2)+'%';
+}
+
 document.getElementById('dstr').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});
 
 const THEMES = {
@@ -545,17 +555,18 @@ function makeCard(s) {
   }
 
   c.className = cardClass;
-  const cs = (s.cp||0) >= 0 ? 'pos' : 'neg';
-  const cstr = `${(s.cp||0)>=0?'+':''}${(s.cp||0).toFixed(2)}%`;
+  const cpVal = s.cp || 0;
+  const cs = cpVal >= 0 ? 'pos' : 'neg';
+  const cstr = fmtPct(cpVal);
 
   // Build levels section based on signal
   let levelsHtml = '';
 
   if (sig === 'BREAKOUT' || sig === 'COILING') {
     // Show: consolidation box, alert level, then extension targets from consol low
-    const consolLow  = mom.consolLow  || s.low52;
-    const consolHigh = mom.consolHigh || s.high52;
-    const X = s.high52 - s.low52; // use Fib range for targets
+    const consolLow  = mom.consolLow  || s.low52  || s.price * 0.8;
+    const consolHigh = mom.consolHigh || s.high52 || s.price * 1.2;
+    const X = (s.high52 && s.low52 && isFinite(s.high52) && isFinite(s.low52)) ? s.high52 - s.low52 : s.price * 0.4;
     const t1 = s.price + X * 0.5;
     const t2 = s.price + X;
     const t3 = s.price + X * 1.618;
@@ -563,42 +574,42 @@ function makeCard(s) {
 
     levelsHtml = `
       <div class="lgrid">
-        <div class="lbox"><div class="ll">📦 Box Top (Resistance)</div><div class="lv" style="color:var(--blue)">$${consolHigh.toFixed(2)}</div><div class="ls">20-day consolidation high</div></div>
-        <div class="lbox"><div class="ll">🎯 Alert Level</div><div class="lv" style="color:var(--purple)">$${(mom.alertLevel||consolHigh*1.03).toFixed(2)}</div><div class="ls">3% above box — entry trigger</div></div>
-        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below box bottom</div></div>
-        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">take half profit</div></div>
-        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${t2.toFixed(2)}</div><div class="ls">let rest run</div></div>
-        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${t3.toFixed(2)}</div><div class="ls">golden ratio</div></div>
+        <div class="lbox"><div class="ll">📦 Box Top (Resistance)</div><div class="lv" style="color:var(--blue)">${fmt(consolHigh)}</div><div class="ls">20-day consolidation high</div></div>
+        <div class="lbox"><div class="ll">🎯 Alert Level</div><div class="lv" style="color:var(--purple)">${fmt(mom.alertLevel||consolHigh*1.03)}</div><div class="ls">3% above box — entry trigger</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">${fmt(stop)}</div><div class="ls">3% below box bottom</div></div>
+        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">${fmt(t1)}</div><div class="ls">take half profit</div></div>
+        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">${fmt(t2)}</div><div class="ls">let rest run</div></div>
+        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">${fmt(t3)}</div><div class="ls">golden ratio</div></div>
       </div>`;
   } else if (sig === 'EXTENDED') {
-    const retestLevel = mom.consolHigh || s.high52 * 0.95;
+    const retestLevel = mom.consolHigh || (s.high52 && isFinite(s.high52) ? s.high52 * 0.95 : s.price * 0.92);
     const stop = retestLevel * 0.97;
-    const X = s.high52 - s.low52;
+    const X = (s.high52 && s.low52 && isFinite(s.high52) && isFinite(s.low52)) ? s.high52 - s.low52 : s.price * 0.4;
     const t1 = s.price + X * 0.3;
     levelsHtml = `
       <div class="lgrid">
-        <div class="lbox"><div class="ll">🎯 Retest Zone (Buy on dip)</div><div class="lv" style="color:var(--green)">$${retestLevel.toFixed(2)}</div><div class="ls">wait for pullback here</div></div>
-        <div class="lbox"><div class="ll">🛑 Stop if Retesting</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below retest zone</div></div>
-        <div class="lbox"><div class="ll">💰 Target if Retest Holds</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">conservative target</div></div>
+        <div class="lbox"><div class="ll">🎯 Retest Zone (Buy on dip)</div><div class="lv" style="color:var(--green)">${fmt(retestLevel)}</div><div class="ls">wait for pullback here</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop if Retesting</div><div class="lv" style="color:var(--red)">${fmt(stop)}</div><div class="ls">3% below retest zone</div></div>
+        <div class="lbox"><div class="ll">💰 Target if Retest Holds</div><div class="lv" style="color:var(--yellow)">${fmt(t1)}</div><div class="ls">conservative target</div></div>
         <div class="lbox"><div class="ll">📏 Currently Extended</div><div class="lv" style="color:var(--orange)">${mom.pctAboveConsol||0}% above box</div><div class="ls">do not chase here</div></div>
       </div>`;
   } else {
     // Default: show Fib retracement levels
-    const X = s.high52 - s.low52;
-    const fib50  = s.high52 - X * 0.5;
-    const fib618 = s.high52 - X * 0.618;
+    const X2 = (s.high52 && s.low52 && isFinite(s.high52) && isFinite(s.low52) && s.high52 > s.low52) ? s.high52 - s.low52 : s.price * 0.4;
+    const fib50  = s.high52 && isFinite(s.high52) ? s.high52 - X2 * 0.5  : s.price * 0.92;
+    const fib618 = s.high52 && isFinite(s.high52) ? s.high52 - X2 * 0.618 : s.price * 0.88;
     const stop   = fib618 * 0.97;
-    const t1 = s.price + X * 0.5;
-    const t2 = s.price + X;
-    const t3 = s.price + X * 1.618;
+    const t1 = s.price + X2 * 0.5;
+    const t2 = s.price + X2;
+    const t3 = s.price + X2 * 1.618;
     levelsHtml = `
       <div class="lgrid">
-        <div class="lbox"><div class="ll">🎯 .618 Entry (Best)</div><div class="lv" style="color:var(--green)">$${fib618.toFixed(2)}</div><div class="ls">deepest pullback</div></div>
-        <div class="lbox"><div class="ll">🎯 .500 Entry (Safe)</div><div class="lv" style="color:var(--yellow)">$${fib50.toFixed(2)}</div><div class="ls">shallower pullback</div></div>
-        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">$${stop.toFixed(2)}</div><div class="ls">3% below .618</div></div>
-        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">$${t1.toFixed(2)}</div><div class="ls">take half profit</div></div>
-        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">$${t2.toFixed(2)}</div><div class="ls">let rest run</div></div>
-        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">$${t3.toFixed(2)}</div><div class="ls">golden ratio</div></div>
+        <div class="lbox"><div class="ll">🎯 .618 Entry (Best)</div><div class="lv" style="color:var(--green)">${fmt(fib618)}</div><div class="ls">deepest pullback</div></div>
+        <div class="lbox"><div class="ll">🎯 .500 Entry (Safe)</div><div class="lv" style="color:var(--yellow)">${fmt(fib50)}</div><div class="ls">shallower pullback</div></div>
+        <div class="lbox"><div class="ll">🛑 Stop Loss</div><div class="lv" style="color:var(--red)">${fmt(stop)}</div><div class="ls">3% below .618</div></div>
+        <div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">${fmt(t1)}</div><div class="ls">take half profit</div></div>
+        <div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">${fmt(t2)}</div><div class="ls">let rest run</div></div>
+        <div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">${fmt(t3)}</div><div class="ls">golden ratio</div></div>
       </div>`;
   }
 
@@ -626,7 +637,7 @@ function makeCard(s) {
     ${momBox}
     ${levelsHtml}
     <div class="cbot">
-      <span class="rtag">Move: ${s.swingMoveSize||0}% · Vol ${s.volRatio||1}×</span>
+      <span class="rtag">Move: ${isFinite(s.swingMoveSize)&&s.swingMoveSize?s.swingMoveSize.toFixed(1):'?'}% · Vol ${isFinite(s.volRatio)&&s.volRatio?s.volRatio.toFixed(1):'1'}×</span>
       <button class="wbtn ${ia?'saved':''}" onclick="toggleW(event,'${s.ticker}')">${ia?'✓ Saved':'+ Watchlist'}</button>
     </div>`;
   return c;

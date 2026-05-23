@@ -230,7 +230,11 @@ async function fetchYahooQuote(ticker) {
   const wr   = weeklyJson.chart.result[0];
   const meta = wr.meta;
   const wq   = wr.indicators.quote[0];
-  const wCandles = wq.close.map((c, i) => ({ c, h: wq.high[i], l: wq.low[i], v: wq.volume[i] })).filter(x => x.c != null);
+  // Filter out ANY candle where close, high, or low is null/undefined/0
+  const wCandles = wq.close.map((c, i) => ({ c, h: wq.high[i], l: wq.low[i], v: wq.volume[i] }))
+    .filter(x => x.c != null && x.h != null && x.l != null && x.c > 0 && x.h > 0 && x.l > 0);
+  
+  if (wCandles.length < 4) throw new Error(`Insufficient candle data for ${ticker}`);
 
   const price     = meta.regularMarketPrice || wCandles[wCandles.length - 1].c;
   const prevClose = meta.chartPreviousClose  || wCandles[wCandles.length - 2]?.c;
@@ -238,25 +242,47 @@ async function fetchYahooQuote(ticker) {
 
   // Smart swing point detection (last 26 weeks)
   const lookback = wCandles.slice(-26);
+  if (lookback.length < 4) throw new Error(`Not enough weekly data for ${ticker}`);
+
+  // Find swing high (Point B)
   let pointBIdx = 0, pointBPrice = 0;
   lookback.forEach((c, i) => { if (c.h > pointBPrice) { pointBPrice = c.h; pointBIdx = i; } });
 
+  // Find swing low before the high (Point A)
   const beforeHigh = lookback.slice(0, Math.max(pointBIdx, 4));
-  let pointAPrice  = beforeHigh.length > 0 ? Math.min(...beforeHigh.map(x => x.l)) : Math.min(...lookback.map(x => x.l));
-  if (pointAPrice >= pointBPrice) {
-    pointAPrice  = Math.min(...lookback.map(x => x.l));
-    pointBPrice  = Math.max(...lookback.map(x => x.h));
+  const validBeforeHighLows = beforeHigh.map(x => x.l).filter(v => v > 0);
+  const validLookbackLows   = lookback.map(x => x.l).filter(v => v > 0);
+  
+  let pointAPrice = validBeforeHighLows.length > 0
+    ? Math.min(...validBeforeHighLows)
+    : (validLookbackLows.length > 0 ? Math.min(...validLookbackLows) : pointBPrice * 0.7);
+
+  // Sanity check: A must be below B
+  if (pointAPrice >= pointBPrice || pointAPrice <= 0) {
+    const validHighs = wCandles.map(x => x.h).filter(v => v > 0);
+    const validLows  = wCandles.map(x => x.l).filter(v => v > 0);
+    pointBPrice = validHighs.length > 0 ? Math.max(...validHighs) : pointBPrice;
+    pointAPrice = validLows.length  > 0 ? Math.min(...validLows)  : pointBPrice * 0.7;
   }
-  const moveSize = ((pointBPrice - pointAPrice) / pointAPrice) * 100;
+
+  // Final NaN/Infinity guard
+  if (!isFinite(pointAPrice) || !isFinite(pointBPrice) || pointAPrice <= 0 || pointBPrice <= 0) {
+    pointBPrice = price * 1.3;
+    pointAPrice = price * 0.7;
+  }
+
+  const moveSize = pointAPrice > 0 ? ((pointBPrice - pointAPrice) / pointAPrice) * 100 : 30;
   if (moveSize < 15) {
-    pointBPrice = Math.max(...wCandles.map(x => x.h));
-    pointAPrice = Math.min(...wCandles.slice(0, Math.floor(wCandles.length / 2)).map(x => x.l));
+    const allHighs = wCandles.map(x => x.h).filter(v => v > 0 && isFinite(v));
+    const allLows  = wCandles.slice(0, Math.floor(wCandles.length / 2)).map(x => x.l).filter(v => v > 0 && isFinite(v));
+    if (allHighs.length > 0) pointBPrice = Math.max(...allHighs);
+    if (allLows.length  > 0) pointAPrice = Math.min(...allLows);
   }
 
   // Weekly volume ratio
-  const wVols  = wCandles.map(x => x.v).filter(v => v > 0);
-  const avgWVol = wVols.slice(-10).reduce((a, b) => a + b, 0) / 10;
-  const lastWVol = wVols[wVols.length - 1] || avgWVol;
+  const wVols   = wCandles.map(x => x.v).filter(v => v != null && v > 0 && isFinite(v));
+  const avgWVol  = wVols.length >= 5 ? wVols.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, wVols.length) : 0;
+  const lastWVol = wVols[wVols.length - 1] || avgWVol || 0;
   const volRatio = avgWVol > 0 ? lastWVol / avgWVol : 1;
 
   // Daily candles for momentum detection
@@ -272,7 +298,7 @@ async function fetchYahooQuote(ticker) {
       if (dr) {
         const dq = dr.indicators.quote[0];
         const dCandles = dq.close.map((c, i) => ({ c, h: dq.high[i], l: dq.low[i], v: dq.volume[i], o: dq.open[i] }))
-          .filter(x => x.c != null).slice(-60);
+          .filter(x => x.c != null && x.h != null && x.l != null && x.c > 0 && isFinite(x.c)).slice(-60);
         momentum = detectMomentum(dCandles, price, pointBPrice, pointAPrice);
       }
     }
