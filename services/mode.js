@@ -56,7 +56,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   const ma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
   const ma50 = closes.length >= 50 ? closes.slice(-50).reduce((a, b) => a + b, 0) / 50 : ma20;
   
-  // Distance from MAs
+  // Distance from MAs (%)
   const distEma9 = ((currentPrice - ema9) / ema9) * 100;
   const distMa20 = ((currentPrice - ma20) / ma20) * 100;
   const distMa50 = ((currentPrice - ma50) / ma50) * 100;
@@ -64,66 +64,64 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   // RSI
   const rsi = calcRSI(closes);
   
-  // Volume analysis
+  // Volume
   const avgVol20 = last20.reduce((a, c) => a + (c.v || 0), 0) / 20;
   const recentVol5 = last5.reduce((a, c) => a + (c.v || 0), 0) / 5;
   const volRatio5_20 = avgVol20 > 0 ? recentVol5 / avgVol20 : 1;
-  
-  // 20-day consolidation box
-  const consolHigh = Math.max(...last20.map(c => c.h));
-  const consolLow = Math.min(...last20.map(c => c.l));
-  const consolRangePct = consolLow > 0 ? ((consolHigh - consolLow) / consolLow) * 100 : 0;
-  
-  // Position above/below consolidation high
-  const pctAboveConsol = consolHigh > 0 ? ((currentPrice - consolHigh) / consolHigh) * 100 : 0;
-  
-  // Fibonacci levels (where actual swing high/low are valid)
-  const validFib = fibSwingHigh > fibSwingLow && fibSwingHigh > 0 && fibSwingLow > 0;
-  const fibRange = validFib ? fibSwingHigh - fibSwingLow : 0;
-  const fib50 = validFib ? fibSwingHigh - fibRange * 0.5 : 0;
-  const fib618 = validFib ? fibSwingHigh - fibRange * 0.618 : 0;
-  const fib382 = validFib ? fibSwingHigh - fibRange * 0.382 : 0;
-  
-  // Where current price sits in fib range (0 = at swing low, 1 = at swing high)
-  const fibPosition = validFib ? (currentPrice - fibSwingLow) / (fibSwingHigh - fibSwingLow) : 0.5;
-  
-  // Volume contraction
   const recentVol10 = last10.reduce((a, c) => a + (c.v || 0), 0) / 10;
   const priorVol10 = prior10.reduce((a, c) => a + (c.v || 0), 0) / 10;
   const volDryPct = priorVol10 > 0 ? ((priorVol10 - recentVol10) / priorVol10) * 100 : 0;
   
-  // Trend slope from 20MA — compare to 10 days ago
+  // Consolidation box (20-day)
+  const consolHigh = Math.max(...last20.map(c => c.h));
+  const consolLow = Math.min(...last20.map(c => c.l));
+  const consolRangePct = consolLow > 0 ? ((consolHigh - consolLow) / consolLow) * 100 : 0;
+  
+  // Fibonacci levels
+  const validFib = fibSwingHigh > fibSwingLow && fibSwingHigh > 0 && fibSwingLow > 0;
+  const fibRange = validFib ? fibSwingHigh - fibSwingLow : 0;
+  const fib50 = validFib ? fibSwingHigh - fibRange * 0.5 : 0;
+  const fib618 = validFib ? fibSwingHigh - fibRange * 0.618 : 0;
+  const fibPosition = validFib ? (currentPrice - fibSwingLow) / (fibSwingHigh - fibSwingLow) : 0.5;
+  
+  // 20MA trend slope (last 10 days)
   const ma20_10ago = closes.slice(-30, -10).reduce((a, b) => a + b, 0) / 20;
   const ma20Slope = ((ma20 - ma20_10ago) / ma20_10ago) * 100;
   
-  // Was there a recent breakout?
-  const breakout = findRecentBreakout(candles, 60);
-  const daysSinceBreakout = breakout?.daysAgo;
-  const holdingBreakout = breakout && currentPrice > breakout.breakoutLevel;
-  
-  // Are MAs aligned bullishly?
+  // MA STRUCTURE — this is the KEY check for momentum
   const bullishMA = currentPrice > ema9 && ema9 > ma20 && ma20 > ma50;
-  const lostMa50 = currentPrice < ma50 && ma20 < ma50;
+  const aboveMA20 = currentPrice > ma20;
+  const aboveMA50 = currentPrice > ma50;
+  const lostMa50 = !aboveMA50 && ma20 < ma50;
   
-  // Build classification reasoning
+  // Recent breakout check
+  const breakout = findRecentBreakout(candles, 60);
+  
+  // Facts object
   const facts = {
     rsi: +rsi.toFixed(1),
     ema9: +ema9.toFixed(2), ma20: +ma20.toFixed(2), ma50: +ma50.toFixed(2),
     distEma9: +distEma9.toFixed(2), distMa20: +distMa20.toFixed(2), distMa50: +distMa50.toFixed(2),
     consolHigh: +consolHigh.toFixed(2), consolLow: +consolLow.toFixed(2), consolRangePct: +consolRangePct.toFixed(1),
-    pctAboveConsol: +pctAboveConsol.toFixed(1),
-    daysSinceBreakout, holdingBreakout,
+    daysSinceBreakout: breakout?.daysAgo,
+    holdingBreakout: breakout && currentPrice > breakout.breakoutLevel,
     volRatio5_20: +volRatio5_20.toFixed(2),
     volDryPct: +volDryPct.toFixed(1),
     ma20Slope: +ma20Slope.toFixed(2),
     fibPosition: +fibPosition.toFixed(2),
-    fib50: +fib50.toFixed(2), fib618: +fib618.toFixed(2), fib382: +fib382.toFixed(2),
+    fib50: +fib50.toFixed(2), fib618: +fib618.toFixed(2),
     bullishMA, lostMa50,
   };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLASSIFICATION — PRIORITY ORDER
+  // 1. Check if BROKEN first (trend reversal)
+  // 2. Then check MOMENTUM (uptrend present)
+  //    - sub-classify by extension + RSI
+  // 3. Then check SETUP modes (no uptrend, basing/pullback)
+  // ═══════════════════════════════════════════════════════════════════
   
-  // === MODE CLASSIFICATION ===
-  
-  // 1. TREND BREAK: Lost the 50MA decisively on volume
+  // ── 1. TREND BREAK ──
   if (lostMa50 && distMa50 < -3 && volRatio5_20 > 1.2) {
     return {
       mode: 'TREND_BREAK',
@@ -136,90 +134,124 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     };
   }
   
-  // 2. LATE/EXHAUSTED MOMENTUM: Extended far from MAs, RSI extreme, climactic volume
-  if (distMa20 > 18 && rsi > 75 && volRatio5_20 > 1.5) {
-    return {
-      mode: 'LATE_MOMENTUM',
-      label: 'Late/Exhausted Momentum',
-      color: 'orange',
-      action: "Don't chase. Wait for cool-down to 20MA.",
-      reasoning: `Extended ${distMa20.toFixed(0)}% above 20MA · RSI ${rsi.toFixed(0)} · vol ${volRatio5_20.toFixed(1)}× — climactic`,
-      entryStrategy: { 
-        type: 'pullback', 
-        level: ma20, 
-        levelLabel: '20MA',
-        stopBelow: ma50,
-        targetTrail: 'Trail 9EMA',
-      },
-      facts, confidence: 75,
-    };
-  }
+  // ── 2. MOMENTUM CHECK ──
+  // A stock is in MOMENTUM if MAs are aligned bullishly AND price above 20MA AND trend rising
+  const inMomentum = bullishMA && aboveMA20 && ma20Slope > 0;
   
-  // 3. EARLY MOMENTUM: Recent breakout (5-15 days ago), holding above breakout, MAs aligned
-  if (breakout && daysSinceBreakout >= 1 && daysSinceBreakout <= 15 && holdingBreakout && bullishMA) {
+  if (inMomentum) {
+    // Build informational "watchout" tags — RSI extreme is INFO, not a gate
+    const watchouts = [];
+    if (rsi > 80) watchouts.push(`RSI ${rsi.toFixed(0)} — extended, but can stay this high in strong trends`);
+    else if (rsi > 70) watchouts.push(`RSI ${rsi.toFixed(0)} — elevated`);
+    if (volRatio5_20 > 2.0) watchouts.push(`Volume ${volRatio5_20.toFixed(1)}× — climactic`);
+    
+    // ── CLASSIFICATION BASED ON MA STRUCTURE + EXTENSION ONLY ──
+    
+    // LATE/EXHAUSTED MOMENTUM: very far from 20MA OR climactic volume on extended move
+    // RSI no longer gates this — only structural extension matters
+    if (distMa20 > 25 || (distMa20 > 15 && volRatio5_20 > 2.5)) {
+      return {
+        mode: 'LATE_MOMENTUM',
+        label: 'Late/Exhausted Momentum',
+        color: 'orange',
+        action: "Don't chase. Wait for pullback to 9EMA or 20MA.",
+        reasoning: `Extended ${distMa20.toFixed(0)}% above 20MA · vol ${volRatio5_20.toFixed(1)}× — climactic structure`,
+        watchouts,
+        entryStrategy: {
+          type: 'pullback',
+          level: ema9, levelLabel: '9 EMA',
+          levelSecondary: ma20, levelSecondaryLabel: '20 MA (preferred)',
+          stopBelow: ma50,
+          targetTrail: 'Trail under 9EMA',
+        },
+        facts, confidence: 80,
+      };
+    }
+    
+    // EXTENDED MOMENTUM: 10-25% above 20MA — structure intact, just don't chase
+    if (distMa20 > 10) {
+      return {
+        mode: 'EARLY_MOMENTUM',
+        label: 'Extended Momentum',
+        color: 'orange',
+        action: `Don't chase here. Wait for pullback to 9EMA $${ema9.toFixed(2)} or 20MA $${ma20.toFixed(2)}.`,
+        reasoning: `${distMa20.toFixed(1)}% above 20MA · MAs aligned · trend +${ma20Slope.toFixed(1)}%/10d`,
+        watchouts,
+        entryStrategy: {
+          type: 'pullback',
+          level: ema9, levelLabel: '9 EMA',
+          levelSecondary: ma20, levelSecondaryLabel: '20 MA',
+          stopBelow: ma20 * 0.97,
+          targetTrail: 'Trail under 20MA',
+        },
+        facts, confidence: 80,
+      };
+    }
+    
+    // FRESH BREAKOUT: broke out recently
+    if (breakout && breakout.daysAgo <= 15 && currentPrice > breakout.breakoutLevel) {
+      return {
+        mode: 'EARLY_MOMENTUM',
+        label: 'Early Momentum (fresh breakout)',
+        color: 'green',
+        action: `Momentum buy. Broke out ${breakout.daysAgo} days ago at $${breakout.breakoutLevel.toFixed(2)} — add on pullbacks to 9EMA.`,
+        reasoning: `Fresh breakout · ${distMa20.toFixed(1)}% above 20MA · MAs aligned`,
+        watchouts,
+        entryStrategy: {
+          type: 'pullback',
+          level: ema9, levelLabel: '9 EMA',
+          levelSecondary: ma20, levelSecondaryLabel: '20 MA',
+          stopBelow: ma20 * 0.97,
+          targetTrail: 'Trail under 20MA',
+        },
+        facts, confidence: 85,
+      };
+    }
+    
+    // ESTABLISHED MOMENTUM: in uptrend, less than 10% above 20MA — healthy spot
     return {
-      mode: 'EARLY_MOMENTUM',
-      label: 'Early Momentum',
+      mode: 'ESTABLISHED_MOMENTUM',
+      label: 'Established Momentum',
       color: 'green',
-      action: 'Momentum buy. Add on pullbacks to 9EMA or 20MA.',
-      reasoning: `Broke out ${daysSinceBreakout} days ago, holding above $${breakout.breakoutLevel.toFixed(2)} · MAs aligned · RSI ${rsi.toFixed(0)}`,
+      action: distEma9 < 2 
+        ? `Buy here near 9EMA $${ema9.toFixed(2)}. Add on pullback to 20MA $${ma20.toFixed(2)}.`
+        : `Hold / trail. Add on pullback to 9EMA $${ema9.toFixed(2)} or 20MA $${ma20.toFixed(2)}.`,
+      reasoning: `Healthy uptrend · ${distMa20.toFixed(1)}% above 20MA · trend +${ma20Slope.toFixed(1)}%/10d`,
+      watchouts,
       entryStrategy: {
         type: 'pullback',
-        level: ema9,
-        levelLabel: '9 EMA',
-        levelSecondary: ma20,
-        levelSecondaryLabel: '20 MA',
-        stopBelow: ma20 * 0.97,
+        level: ema9, levelLabel: '9 EMA',
+        levelSecondary: ma20, levelSecondaryLabel: '20 MA',
+        stopBelow: ma50,
         targetTrail: 'Trail under 20MA',
       },
       facts, confidence: 85,
     };
   }
   
-  // 4. ESTABLISHED MOMENTUM: Been trending 1-3 months, healthy MA structure
-  if (bullishMA && distMa20 < 15 && distMa20 > 0 && ma20Slope > 1 && rsi >= 45 && rsi <= 75) {
-    return {
-      mode: 'ESTABLISHED_MOMENTUM',
-      label: 'Established Momentum',
-      color: 'green',
-      action: 'Hold / trail. Pullback to 20MA = add.',
-      reasoning: `Healthy uptrend · ${distMa20.toFixed(1)}% above 20MA · trend +${ma20Slope.toFixed(1)}% · RSI ${rsi.toFixed(0)}`,
-      entryStrategy: {
-        type: 'pullback',
-        level: ma20,
-        levelLabel: '20 MA',
-        levelSecondary: ema9,
-        levelSecondaryLabel: '9 EMA',
-        stopBelow: ma50,
-        targetTrail: 'Trail 20MA',
-      },
-      facts, confidence: 80,
-    };
-  }
+  // ── 3. SETUP MODES (not in momentum, no uptrend yet) ──
   
-  // 5. SETUP READY: Pulled back into fib zone (.500-.618), declining volume
+  // SETUP READY: pulled back into fib zone with declining volume
   if (validFib && fibPosition >= 0.382 && fibPosition <= 0.62 && volDryPct > 5) {
     return {
       mode: 'SETUP_READY',
       label: 'Setup Ready',
       color: 'blue',
-      action: `Enter on bounce. Fib zone ${fib618.toFixed(2)}–${fib50.toFixed(2)}.`,
-      reasoning: `In .500–.618 fib zone · volume drying ${volDryPct.toFixed(0)}% · ready for bounce`,
+      action: `Enter on bounce. Fib zone $${fib618.toFixed(2)}-$${fib50.toFixed(2)}.`,
+      reasoning: `In .500-.618 fib zone · volume drying ${volDryPct.toFixed(0)}% · ready for bounce`,
       entryStrategy: {
         type: 'fib',
-        levelBest: fib618,
-        levelBestLabel: '.618 (best)',
-        levelSafe: fib50,
-        levelSafeLabel: '.500 (safe)',
+        levelBest: fib618, levelBestLabel: '.618 (best)',
+        levelSafe: fib50, levelSafeLabel: '.500 (safe)',
         stopBelow: fib618 * 0.97,
-        target1: currentPrice + (fibSwingHigh - fibSwingLow) * 0.5,
-        target2: currentPrice + (fibSwingHigh - fibSwingLow),
+        target1: currentPrice + fibRange * 0.5,
+        target2: currentPrice + fibRange,
       },
       facts, confidence: 75,
     };
   }
   
-  // 6. SETUP FORMING: Tight base, low volume, in upper fib range but not at entry yet
+  // SETUP FORMING: tight base, low volume
   if (consolRangePct < 15 && volDryPct > 10) {
     return {
       mode: 'SETUP_FORMING',
@@ -238,33 +270,26 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     };
   }
   
-  // 7. EXTENDED-BUT-NOT-LATE: Stock has run but not climactic yet
-  if (distMa20 > 8 && distMa20 < 18 && rsi < 75) {
+  // SLIGHT UPTREND, NO CLEAR SETUP: stock is above 20MA but MAs not aligned
+  if (aboveMA20 && !lostMa50) {
     return {
-      mode: 'EARLY_MOMENTUM',
-      label: 'Early Momentum (mild)',
-      color: 'green',
-      action: 'Wait for pullback to 9EMA or 20MA before entering.',
-      reasoning: `${distMa20.toFixed(0)}% above 20MA · RSI ${rsi.toFixed(0)} · not climactic but extended`,
-      entryStrategy: {
-        type: 'pullback',
-        level: ema9,
-        levelLabel: '9 EMA',
-        levelSecondary: ma20,
-        levelSecondaryLabel: '20 MA',
-        stopBelow: ma20 * 0.97,
-      },
-      facts, confidence: 65,
+      mode: 'WAIT',
+      label: 'Choppy — no edge',
+      color: 'gray',
+      action: 'Above 20MA but no clear momentum or setup. Watch.',
+      reasoning: `Above 20MA but MAs not aligned (9EMA ${distEma9>0?'+':''}${distEma9.toFixed(1)}%, 50MA ${distMa50>0?'+':''}${distMa50.toFixed(1)}%) · RSI ${rsi.toFixed(0)}`,
+      entryStrategy: null,
+      facts, confidence: 40,
     };
   }
   
-  // Default: WAIT — no clear mode
+  // DOWNTREND / WAIT
   return {
     mode: 'WAIT',
-    label: 'No clear mode',
+    label: 'Downtrend or no setup',
     color: 'gray',
-    action: 'No actionable setup. Check back next week.',
-    reasoning: `Mixed signals · RSI ${rsi.toFixed(0)} · ${distMa20.toFixed(1)}% from 20MA`,
+    action: 'Below 20MA or no setup. Avoid for now.',
+    reasoning: `${aboveMA20?'Above':'Below'} 20MA · RSI ${rsi.toFixed(0)} · ${distMa20.toFixed(1)}% from 20MA`,
     entryStrategy: null,
     facts, confidence: 40,
   };
