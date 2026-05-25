@@ -790,13 +790,28 @@ function makeCard(s) {
   if (md.entryStrategy) {
     const es = md.entryStrategy;
     if (es.type === 'pullback') {
-      strategyHtml = `
+      // Entry + stop + manage row
+      let html = `
         <div class="lgrid">
           <div class="lbox"><div class="ll">📍 Primary Entry (${es.levelLabel})</div><div class="lv" style="color:var(--green)">${fmt(es.level)}</div><div class="ls">pull back to this MA</div></div>
           ${es.levelSecondary ? `<div class="lbox"><div class="ll">📍 Secondary Entry (${es.levelSecondaryLabel})</div><div class="lv" style="color:var(--blue)">${fmt(es.levelSecondary)}</div><div class="ls">deeper pullback</div></div>` : ''}
-          <div class="lbox"><div class="ll">🛑 Stop</div><div class="lv" style="color:var(--red)">${fmt(es.stopBelow)}</div><div class="ls">below key support</div></div>
+          <div class="lbox"><div class="ll">🛑 Stop</div><div class="lv" style="color:var(--red)">${fmt(es.stopBelow)}</div><div class="ls">${es.stopLabel || 'below key support'}</div></div>
           <div class="lbox"><div class="ll">📈 Manage</div><div class="lv" style="color:var(--yellow);font-size:0.86rem">${es.targetTrail || 'Trail'}</div><div class="ls">ride the trend</div></div>
         </div>`;
+      
+      // Targets row (if any extension targets remain above current price)
+      const hasTargets = es.target1_5x || es.target2x || es.target2_618x;
+      if (hasTargets) {
+        html += `
+          <div style="font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:12px;margin-bottom:6px;">📈 Upside Targets (extension from swing range)</div>
+          <div class="lgrid">
+            ${es.target1_5x ? `<div class="lbox"><div class="ll">💰 Target 1 (1.5×)</div><div class="lv" style="color:var(--yellow)">${fmt(es.target1_5x)}</div><div class="ls">+${es.target1_5x_up?.toFixed(0)}% upside · take half</div></div>` : ''}
+            ${es.target2x ? `<div class="lbox"><div class="ll">🚀 Target 2 (2×)</div><div class="lv" style="color:var(--blue)">${fmt(es.target2x)}</div><div class="ls">+${es.target2x_up?.toFixed(0)}% upside · let rest run</div></div>` : ''}
+            ${es.target2_618x ? `<div class="lbox"><div class="ll">⭐ Target 3 (2.618×)</div><div class="lv" style="color:var(--purple)">${fmt(es.target2_618x)}</div><div class="ls">+${es.target2_618x_up?.toFixed(0)}% upside · golden ratio</div></div>` : ''}
+          </div>`;
+      }
+      
+      strategyHtml = html;
     } else if (es.type === 'fib') {
       strategyHtml = `
         <div class="lgrid">

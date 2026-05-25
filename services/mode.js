@@ -195,6 +195,26 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     else if (rsi > 70) watchouts.push(`RSI ${rsi.toFixed(0)} — elevated`);
     if (volRatio5_20 > 2.0) watchouts.push(`Volume ${volRatio5_20.toFixed(1)}× — climactic`);
     
+    // Calculate extension targets for momentum trades
+    // Use fib swing range as the projection unit. If invalid, use 20-day range as fallback.
+    const baseLow = validFib ? fibSwingLow : Math.min(...candles.slice(-60).map(c => c.l));
+    const baseHigh = validFib ? fibSwingHigh : Math.max(...candles.slice(-60).map(c => c.h));
+    const baseRange = baseHigh - baseLow;
+    const target1_5x = baseLow + baseRange * 1.5;   // 1.5× extension
+    const target2x = baseLow + baseRange * 2.0;     // 2× extension
+    const target2_618x = baseLow + baseRange * 2.618; // golden ratio
+    
+    // Filter targets to only show ones above current price (others already hit)
+    const momTargets = {
+      target1_5x: target1_5x > currentPrice ? target1_5x : null,
+      target2x: target2x > currentPrice ? target2x : null,
+      target2_618x: target2_618x > currentPrice ? target2_618x : null,
+      // Show % upside from current
+      target1_5x_up: target1_5x > currentPrice ? ((target1_5x - currentPrice) / currentPrice * 100) : null,
+      target2x_up: target2x > currentPrice ? ((target2x - currentPrice) / currentPrice * 100) : null,
+      target2_618x_up: target2_618x > currentPrice ? ((target2_618x - currentPrice) / currentPrice * 100) : null,
+    };
+    
     // ── CLASSIFICATION BASED ON MA STRUCTURE + EXTENSION ONLY ──
     
     // LATE/EXHAUSTED MOMENTUM: very far from 20MA OR climactic volume on extended move
@@ -218,6 +238,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopBelow: ema21 * 0.97,
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Trail under 9EMA',
+          ...momTargets,
         },
         facts, confidence: 80,
       };
@@ -244,6 +265,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopBelow: ema21 * 0.97,
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Trail under 21 EMA (exit on break)',
+          ...momTargets,
         },
         facts, confidence: 80,
       };
@@ -271,6 +293,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopBelow: ema21 * 0.97,
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Exit on 21 EMA break',
+          ...momTargets,
         },
         facts, confidence: 85,
       };
@@ -300,6 +323,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         stopBelow: ema21 * 0.97,
         stopLabel: 'Below 21 EMA (trend-break warning)',
         targetTrail: 'Trail under 21 EMA',
+        ...momTargets,
       },
       facts, confidence: 85,
     };
