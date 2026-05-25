@@ -2,6 +2,9 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const path = require('path');
+const { getMarketRegime } = require('./services/regime');
+const { getStockNews, getMarketNews } = require('./services/news');
+const { classifyMode, applyRegimeContext, calcEMA, calcRSI } = require('./services/mode');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -147,27 +150,34 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     if (higherLows) details.push(`📐 Higher lows — buyers stepping in`);
   }
   // === FIB ZONE: Price has pulled back to the 0.5-0.618 retracement level ===
-  else if (fibSwingHigh > fibSwingLow) {
+  else if (fibSwingHigh > fibSwingLow && (fibSwingHigh - fibSwingLow) / fibSwingLow > 0.15) {
     const fibRange = fibSwingHigh - fibSwingLow;
     const fib50  = fibSwingHigh - fibRange * 0.5;
     const fib618 = fibSwingHigh - fibRange * 0.618;
-    const inFibZone = currentPrice >= fib618 * 0.99 && currentPrice <= fib50 * 1.01;
-    const nearFibZone = currentPrice >= fib618 * 0.95 && currentPrice <= fib50 * 1.05;
+    
+    // STRICT: price must actually be between .618 (lower bound) and .500 (upper bound) of the retracement
+    const inFibZone = currentPrice >= fib618 && currentPrice <= fib50;
+    
+    // Near = within 3% of the zone boundary, but NOT in it
+    const nearFibZone = !inFibZone && (
+      (currentPrice > fib50 && currentPrice <= fib50 * 1.03) ||
+      (currentPrice >= fib618 * 0.97 && currentPrice < fib618)
+    );
 
     if (inFibZone) {
       signal = 'FIB_ZONE';
       score = 65;
       reason = `In Fibonacci buy zone — entry opportunity`;
-      details.push(`🟢 Price at .618-$.500 retracement zone`);
-      details.push(`📍 Entry range: $${fib618.toFixed(2)} — $${fib50.toFixed(2)}`);
+      details.push(`🟢 Price $${currentPrice.toFixed(2)} between .618 ($${fib618.toFixed(2)}) and .500 ($${fib50.toFixed(2)})`);
+      details.push(`📍 Actual fib buy zone: $${fib618.toFixed(2)} — $${fib50.toFixed(2)}`);
       if (greenDays >= 6) details.push(`🟢 ${greenDays}/10 green days — buyers returning`);
       if (volSpikeRatio >= 1.5) details.push(`📈 Volume picking up ${volSpikeRatio.toFixed(1)}× — accumulation`);
     } else if (nearFibZone) {
       signal = 'APPROACHING';
       score = 40;
       reason = `Approaching Fibonacci support zone`;
-      details.push(`🟡 Nearing .618-$.500 zone — watch for bounce`);
-      details.push(`📍 Target zone: $${fib618.toFixed(2)} — $${fib50.toFixed(2)}`);
+      details.push(`🟡 Price $${currentPrice.toFixed(2)} approaching .500-.618 zone`);
+      details.push(`📍 Fib zone target: $${fib618.toFixed(2)} — $${fib50.toFixed(2)}`);
     }
   }
 
@@ -195,6 +205,9 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     }
   }
 
+  const ema9 = calcEMA(closes.slice(-30), 9);
+  const modeClass = classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow);
+
   return {
     signal,
     reason,
@@ -206,8 +219,11 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     volSpikeRatio: parseFloat(volSpikeRatio.toFixed(2)),
     tighteningPct: parseFloat(tighteningPct.toFixed(1)),
     pctAboveConsol: parseFloat(pctAboveConsol.toFixed(1)),
+    ema9: parseFloat(ema9.toFixed(2)),
     ma10: parseFloat(ma10.toFixed(2)),
     ma20: parseFloat(ma20.toFixed(2)),
+    ma50: parseFloat(ma50.toFixed(2)),
+    mode: modeClass,
   };
 }
 
@@ -468,4 +484,60 @@ app.post('/api/criteria/reset', (req, res) => {
   res.json({ message: 'Criteria preserved', version: c.version });
 });
 
-app.listen(PORT, () => console.log(`SwingScan on port ${PORT}`));
+// ── MARKET REGIME ──
+app.get('/api/regime', async (req, res) => {
+  try {
+    const regime = await getMarketRegime();
+    res.json(regime);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── STOCK NEWS (Finnhub) ──
+app.get('/api/news/:ticker', async (req, res) => {
+  try {
+    const news = await getStockNews(req.params.ticker, parseInt(req.query.days) || 5);
+    res.json(news);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── MARKET NEWS ──
+app.get('/api/market-news', async (req, res) => {
+  try {
+    const news = await getMarketNews();
+    res.json(news);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── MANUAL NEWS PASTE & EXTRACT ──
+app.post('/api/extract-news', async (req, res) => {
+  const { rawText, tickers } = req.body;
+  if (!rawText || rawText.length < 20) return res.status(400).json({ error: 'Empty or too short' });
+  
+  const tickerHint = tickers && tickers.length ? `Pay special attention to mentions of these tickers: ${tickers.join(', ')}.` : '';
+  
+  const prompt = 'You are parsing raw text from a WhatsApp/Telegram/news source for a swing trader. Extract market-relevant information.\n\n' +
+    'Raw text:\n"""\n' + rawText.slice(0, 8000) + '\n"""\n\n' +
+    tickerHint + '\n\n' +
+    'Return ONLY a JSON object (no markdown):\n' +
+    '{\n' +
+    '  "perStock": [\n' +
+    '    { "ticker": "AAPL", "headline": "Brief summary of what was said", "sentiment": "bullish|bearish|neutral", "relevance": "high|medium|low" }\n' +
+    '  ],\n' +
+    '  "macroItems": [\n' +
+    '    { "topic": "Fed/inflation/sector rotation/etc", "headline": "Brief summary", "impact": "SPY positive|QQQ negative|neutral" }\n' +
+    '  ],\n' +
+    '  "summary": "One sentence summary of overall market tone"\n' +
+    '}\n\n' +
+    'If nothing trading-relevant is in the text, return empty arrays.';
+
+  try {
+    const raw = await askClaude(prompt, 1500);
+    const data = extractJSON(raw, 'object');
+    res.json(data || { perStock: [], macroItems: [], summary: 'Could not parse' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.listen(PORT, () => console.log(`SwingScan on port ${PORT} · Regime + News + Mode classifier enabled`));
+

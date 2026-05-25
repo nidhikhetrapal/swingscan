@@ -48,6 +48,59 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .sbtn.active{border-color:var(--green);color:var(--green);}
 .rh{display:none;justify-content:space-between;align-items:center;margin-bottom:12px;}
 .rc{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted2);}
+/* ── REGIME BANNER ── */
+.regime-banner{padding:10px 16px;border-radius:12px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid;}
+.regime-banner.r-green{background:rgba(0,245,160,0.06);border-color:rgba(0,245,160,0.3);color:var(--green);}
+.regime-banner.r-yellow{background:rgba(255,209,102,0.08);border-color:rgba(255,209,102,0.3);color:var(--yellow);}
+.regime-banner.r-orange{background:rgba(247,127,0,0.08);border-color:rgba(247,127,0,0.3);color:var(--orange);}
+.regime-banner.r-red{background:rgba(255,77,109,0.08);border-color:rgba(255,77,109,0.3);color:var(--red);}
+.regime-banner.r-gray{background:var(--surface);border-color:var(--border);color:var(--muted2);}
+.regime-label{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px;}
+.regime-action{font-size:0.78rem;font-weight:600;color:var(--text);flex:1;min-width:200px;}
+.regime-detail{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);width:100%;margin-top:4px;}
+.regime-loading{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;padding:14px;}
+/* ── MODE PILLS ── */
+.mode-pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;font-family:'DM Mono',monospace;font-size:0.58rem;letter-spacing:1px;font-weight:700;text-transform:uppercase;border:1px solid;}
+.mode-EARLY_MOMENTUM,.mode-ESTABLISHED_MOMENTUM{background:rgba(0,245,160,0.1);border-color:rgba(0,245,160,0.35);color:var(--green);}
+.mode-LATE_MOMENTUM{background:rgba(247,127,0,0.1);border-color:rgba(247,127,0,0.35);color:var(--orange);}
+.mode-SETUP_READY{background:rgba(76,201,240,0.1);border-color:rgba(76,201,240,0.35);color:var(--blue);}
+.mode-SETUP_FORMING{background:rgba(155,93,229,0.1);border-color:rgba(155,93,229,0.35);color:var(--purple);}
+.mode-TREND_BREAK{background:rgba(255,77,109,0.1);border-color:rgba(255,77,109,0.35);color:var(--red);}
+.mode-WAIT,.mode-UNKNOWN{background:var(--surface);border-color:var(--border);color:var(--muted2);}
+.mode-action-box{background:var(--surface);border-left:3px solid var(--green);padding:9px 12px;margin-top:10px;border-radius:6px;font-size:0.74rem;color:var(--text);}
+.mode-action-box.mode-EARLY_MOMENTUM,.mode-action-box.mode-ESTABLISHED_MOMENTUM{border-left-color:var(--green);}
+.mode-action-box.mode-LATE_MOMENTUM{border-left-color:var(--orange);}
+.mode-action-box.mode-SETUP_READY{border-left-color:var(--blue);}
+.mode-action-box.mode-SETUP_FORMING{border-left-color:var(--purple);}
+.mode-action-box.mode-TREND_BREAK{border-left-color:var(--red);}
+.mode-action-reasoning{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:5px;}
+/* ── VIEW FILTER (Setup vs Momentum) ── */
+.view-filter{display:flex;gap:5px;margin-bottom:14px;background:var(--surface);padding:4px;border-radius:8px;border:1px solid var(--border);}
+.vf-btn{flex:1;padding:7px 12px;background:transparent;border:none;color:var(--muted2);font-size:0.74rem;font-weight:600;cursor:pointer;border-radius:6px;}
+.vf-btn.active{background:var(--gdim);color:var(--green);}
+/* ── NEWS SECTION ── */
+.news-section{margin-top:10px;border-top:1px solid var(--border);padding-top:9px;}
+.news-title{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:7px;display:flex;justify-content:space-between;}
+.news-item{padding:5px 0;border-bottom:1px dashed rgba(255,255,255,0.04);font-size:0.7rem;line-height:1.4;}
+.news-item:last-child{border-bottom:none;}
+.news-headline{color:var(--text);text-decoration:none;display:block;}
+.news-headline:hover{color:var(--green);}
+.news-meta{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);margin-top:2px;}
+.news-empty{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);padding:7px 0;}
+/* ── MANUAL PASTE IMPORT ── */
+.paste-box{background:var(--surface);border:1px dashed var(--border);border-radius:10px;padding:14px;margin-bottom:16px;}
+.paste-title{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.paste-area{width:100%;min-height:80px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.72rem;outline:none;resize:vertical;}
+.paste-area:focus{border-color:var(--green);}
+.paste-extract-btn{margin-top:8px;padding:7px 14px;background:var(--gdim);border:1px solid var(--green);border-radius:8px;color:var(--green);font-size:0.72rem;font-weight:700;cursor:pointer;}
+.paste-extract-btn:hover{background:var(--green);color:#000;}
+.paste-extract-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.extracted-items{margin-top:12px;}
+.extracted-item{padding:7px 11px;background:var(--bg);border-radius:6px;margin-bottom:5px;font-size:0.7rem;}
+.extracted-item.bullish{border-left:3px solid var(--green);}
+.extracted-item.bearish{border-left:3px solid var(--red);}
+.extracted-item.neutral{border-left:3px solid var(--muted2);}
+.extracted-item-tk{font-weight:700;color:var(--blue);margin-right:6px;}
 .rc strong{color:var(--green);font-size:0.95rem;}
 /* STOCK CARD */
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:9px;transition:all 0.2s;position:relative;overflow:hidden;}
@@ -185,6 +238,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </head>
 <body>
 <div class="wrap">
+  <div id="regimeBanner" class="regime-loading">⏳ Checking market regime...</div>
   <div class="header-row">
     <div>
       <div class="logo">SwingScan</div>
@@ -227,6 +281,21 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <button class="sbtn" onclick="sortC('rwd',this)">💰 Best Reward</button>
     </div>
     <div class="rh" id="rhd"><div class="rc">Found <strong id="rcc">0</strong> setups</div><div style="font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted)">🟢 In zone &nbsp;🟡 Near &nbsp;⚪ Wait</div></div>
+    <div class="view-filter" id="viewFilter" style="display:none;">
+      <button class="vf-btn active" onclick="setView('all',this)">All Modes</button>
+      <button class="vf-btn" onclick="setView('momentum',this)">📈 Momentum</button>
+      <button class="vf-btn" onclick="setView('setup',this)">🎯 Setups</button>
+      <button class="vf-btn" onclick="setView('avoid',this)">⚠️ Avoid</button>
+    </div>
+    <div class="paste-box" id="pasteBox" style="display:none;">
+      <div class="paste-title">📝 Paste WhatsApp / Telegram / News content — Claude extracts relevant items</div>
+      <textarea class="paste-area" id="pasteArea" placeholder="Paste any text — group chat messages, news headlines, anything market-related. Claude will categorize it by ticker + macro impact."></textarea>
+      <button class="paste-extract-btn" id="extractBtn" onclick="extractNews()">🧠 Extract trading-relevant items</button>
+      <div class="extracted-items" id="extractedItems"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <button class="sbtn" onclick="togglePasteBox()" style="font-size:0.66rem;padding:5px 11px;">📝 Paste news/chat</button>
+    </div>
     <div id="res"></div>
   </div>
 
@@ -527,7 +596,6 @@ async function runScan() {
   if (!SDA.length) { em.textContent = 'No stock data returned. Check server logs.'; em.style.display = 'block'; return; }
   SDA.sort((a,b) => b.zs - a.zs || b.rwd - a.rwd);
   renderCards(SDA);
-  document.getElementById('rcc').textContent = SDA.length;
   sb.style.display = 'flex'; rh.style.display = 'flex';
 }
 
@@ -628,23 +696,200 @@ function makeCard(s) {
 
   const ia = WL.find(w => w.ticker === s.ticker);
 
+  // Mode classification box (new)
+  const md = mom.mode || { mode: 'UNKNOWN', label: 'No mode data', action: '', color: 'gray', reasoning: '' };
+  const modePill = `<span class="mode-pill mode-${md.mode}">${md.label}</span>`;
+  const modeBox = md.mode !== 'UNKNOWN' && md.action ? `
+    <div class="mode-action-box mode-${md.mode}">
+      <div style="font-weight:600;margin-bottom:2px;">${md.action}</div>
+      <div class="mode-action-reasoning">${md.reasoning || ''}</div>
+    </div>` : '';
+  
+  // Build entry strategy section based on mode (replaces the old levelsHtml for momentum modes)
+  let strategyHtml = levelsHtml;
+  if (md.entryStrategy) {
+    const es = md.entryStrategy;
+    if (es.type === 'pullback') {
+      strategyHtml = `
+        <div class="lgrid">
+          <div class="lbox"><div class="ll">📍 Primary Entry (${es.levelLabel})</div><div class="lv" style="color:var(--green)">${fmt(es.level)}</div><div class="ls">pull back to this MA</div></div>
+          ${es.levelSecondary ? `<div class="lbox"><div class="ll">📍 Secondary Entry (${es.levelSecondaryLabel})</div><div class="lv" style="color:var(--blue)">${fmt(es.levelSecondary)}</div><div class="ls">deeper pullback</div></div>` : ''}
+          <div class="lbox"><div class="ll">🛑 Stop</div><div class="lv" style="color:var(--red)">${fmt(es.stopBelow)}</div><div class="ls">below key support</div></div>
+          <div class="lbox"><div class="ll">📈 Manage</div><div class="lv" style="color:var(--yellow);font-size:0.86rem">${es.targetTrail || 'Trail'}</div><div class="ls">ride the trend</div></div>
+        </div>`;
+    } else if (es.type === 'fib') {
+      strategyHtml = `
+        <div class="lgrid">
+          <div class="lbox"><div class="ll">🎯 ${es.levelBestLabel}</div><div class="lv" style="color:var(--green)">${fmt(es.levelBest)}</div><div class="ls">deepest pullback</div></div>
+          <div class="lbox"><div class="ll">🎯 ${es.levelSafeLabel}</div><div class="lv" style="color:var(--yellow)">${fmt(es.levelSafe)}</div><div class="ls">shallower entry</div></div>
+          <div class="lbox"><div class="ll">🛑 Stop</div><div class="lv" style="color:var(--red)">${fmt(es.stopBelow)}</div><div class="ls">3% below .618</div></div>
+          <div class="lbox"><div class="ll">💰 Target 1</div><div class="lv" style="color:var(--yellow)">${fmt(es.target1)}</div><div class="ls">half profit</div></div>
+          <div class="lbox"><div class="ll">🚀 Target 2</div><div class="lv" style="color:var(--blue)">${fmt(es.target2)}</div><div class="ls">let rest run</div></div>
+        </div>`;
+    } else if (es.type === 'breakout_or_pullback') {
+      strategyHtml = `
+        <div class="lgrid">
+          <div class="lbox"><div class="ll">🚀 ${es.breakoutLabel}</div><div class="lv" style="color:var(--purple)">${fmt(es.breakoutLevel)}</div><div class="ls">enter on breakout</div></div>
+          <div class="lbox"><div class="ll">🎯 ${es.pullbackLabel}</div><div class="lv" style="color:var(--blue)">${fmt(es.pullbackLevel)}</div><div class="ls">or wait for dip</div></div>
+        </div>`;
+    }
+  }
+  
+  // MA snapshot section (new — shows 9 EMA, 20 MA, 50 MA together)
+  const maSnapshot = (mom.ema9 || mom.ma20) ? `
+    <div style="display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);margin-bottom:10px;flex-wrap:wrap;">
+      ${mom.ema9 ? `<span>9EMA $${mom.ema9.toFixed(2)}</span>` : ''}
+      ${mom.ma20 ? `<span>20MA $${mom.ma20.toFixed(2)}</span>` : ''}
+      ${mom.ma50 ? `<span>50MA $${mom.ma50.toFixed(2)}</span>` : ''}
+      ${md.facts?.rsi ? `<span>RSI ${md.facts.rsi.toFixed(0)}</span>` : ''}
+    </div>` : '';
+
   c.innerHTML = `
     <div class="ct">
       <div><div class="sticker">${s.ticker}</div><div class="sname">${(s.themes||[]).join(' · ')}</div></div>
       <div class="sr2"><div class="sp">$${s.price.toFixed(2)}</div><div class="sc ${cs}">${cstr}</div></div>
     </div>
-    <div class="badge ${bc}">${bdg}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+      <div class="badge ${bc}" style="margin-bottom:0;">${bdg}</div>
+      ${modePill}
+    </div>
+    ${modeBox}
+    ${maSnapshot}
     ${momBox}
-    ${levelsHtml}
+    ${strategyHtml}
+    <div class="news-section" id="news-${s.ticker}">
+      <div class="news-title">📰 Recent News<button class="sbtn" style="padding:2px 7px;font-size:0.58rem;" onclick="loadNews('${s.ticker}',this)">Load</button></div>
+    </div>
     <div class="cbot">
       <span class="rtag">Move: ${isFinite(s.swingMoveSize)&&s.swingMoveSize?s.swingMoveSize.toFixed(1):'?'}% · Vol ${isFinite(s.volRatio)&&s.volRatio?s.volRatio.toFixed(1):'1'}×</span>
       <button class="wbtn ${ia?'saved':''}" onclick="toggleW(event,'${s.ticker}')">${ia?'✓ Saved':'+ Watchlist'}</button>
     </div>`;
+  c.dataset.mode = md.mode;
   return c;
 }
 
 
-function renderCards(data) { const div = document.getElementById('res'); div.innerHTML = ''; data.forEach(s => div.appendChild(makeCard(s))); }
+function renderCards(data) { 
+  const div = document.getElementById('res'); 
+  div.innerHTML = ''; 
+  const filtered = currentView === 'all' ? data :
+    currentView === 'momentum' ? data.filter(s => s.momentum?.mode?.mode === 'EARLY_MOMENTUM' || s.momentum?.mode?.mode === 'ESTABLISHED_MOMENTUM' || s.momentum?.mode?.mode === 'LATE_MOMENTUM') :
+    currentView === 'setup' ? data.filter(s => s.momentum?.mode?.mode === 'SETUP_READY' || s.momentum?.mode?.mode === 'SETUP_FORMING') :
+    currentView === 'avoid' ? data.filter(s => s.momentum?.mode?.mode === 'TREND_BREAK' || s.momentum?.mode?.mode === 'LATE_MOMENTUM') :
+    data;
+  filtered.forEach(s => div.appendChild(makeCard(s)));
+  document.getElementById('rcc').textContent = filtered.length;
+  document.getElementById('viewFilter').style.display = data.length > 0 ? 'flex' : 'none';
+}
+
+let currentView = 'all';
+function setView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('.vf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards(SDA);
+}
+
+// ── REGIME BANNER ──
+async function loadRegime() {
+  const banner = document.getElementById('regimeBanner');
+  try {
+    const r = await fetch('/api/regime');
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    banner.className = 'regime-banner r-' + (d.color || 'gray');
+    banner.innerHTML = `
+      <div class="regime-label">${d.regime === 'HEALTHY' ? '🟢' : d.regime === 'CHOPPY' ? '🟡' : d.regime === 'CORRECTION' ? '🟠' : d.regime === 'DISTRIBUTION' || d.regime === 'BEAR' ? '🔴' : '⚪'} ${d.label}</div>
+      <div class="regime-action">${d.action || ''}</div>
+      <div class="regime-detail">${d.detail || ''}${d.spy ? ` · SPY $${d.spy.price} · QQQ $${d.qqq.price}` : ''}</div>`;
+  } catch(e) {
+    banner.className = 'regime-loading';
+    banner.textContent = '⚠️ Regime check failed: ' + e.message;
+  }
+}
+
+// ── PER-STOCK NEWS ──
+async function loadNews(ticker, btn) {
+  const section = document.getElementById('news-' + ticker);
+  if (!section) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const r = await fetch('/api/news/' + ticker);
+    const d = await r.json();
+    if (!d.available) {
+      section.innerHTML = `<div class="news-title">📰 Recent News</div><div class="news-empty">News API not configured. Add FINNHUB_API_KEY env var.</div>`;
+      return;
+    }
+    if (!d.items?.length) {
+      section.innerHTML = `<div class="news-title">📰 Recent News</div><div class="news-empty">No recent news</div>`;
+      return;
+    }
+    section.innerHTML = `<div class="news-title">📰 Recent News · last 5 days</div>` +
+      d.items.map(n => `<div class="news-item"><a class="news-headline" href="${n.url}" target="_blank">${n.headline}</a><div class="news-meta">${n.source} · ${n.date}</div></div>`).join('');
+  } catch(e) {
+    section.innerHTML = `<div class="news-title">📰 News</div><div class="news-empty">Error: ${e.message}</div>`;
+  }
+}
+
+// ── PASTE & EXTRACT ──
+function togglePasteBox() {
+  const box = document.getElementById('pasteBox');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+async function extractNews() {
+  const ta = document.getElementById('pasteArea');
+  const btn = document.getElementById('extractBtn');
+  const out = document.getElementById('extractedItems');
+  const text = ta.value.trim();
+  if (text.length < 20) return alert('Paste some content first');
+  
+  btn.disabled = true; btn.textContent = '🧠 Claude is reading...';
+  out.innerHTML = '';
+  
+  const watchedTickers = [...new Set(SDA.map(s => s.ticker))];
+  
+  try {
+    const r = await fetch('/api/extract-news', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText: text, tickers: watchedTickers })
+    });
+    const d = await r.json();
+    btn.disabled = false; btn.textContent = '🧠 Extract trading-relevant items';
+    
+    let html = '';
+    if (d.summary) html += `<div style="font-style:italic;color:var(--muted2);margin-bottom:8px;font-size:0.74rem;">📋 ${d.summary}</div>`;
+    if (d.macroItems?.length) {
+      html += '<div style="font-family:DM Mono;font-size:0.58rem;color:var(--muted);margin-top:8px;margin-bottom:5px;text-transform:uppercase;letter-spacing:1.5px;">Macro / Market</div>';
+      d.macroItems.forEach(m => {
+        html += `<div class="extracted-item neutral"><strong>${m.topic}</strong> — ${m.headline} <span style="color:var(--muted)">(${m.impact})</span></div>`;
+      });
+    }
+    if (d.perStock?.length) {
+      html += '<div style="font-family:DM Mono;font-size:0.58rem;color:var(--muted);margin-top:8px;margin-bottom:5px;text-transform:uppercase;letter-spacing:1.5px;">Per Stock</div>';
+      d.perStock.forEach(s => {
+        html += `<div class="extracted-item ${s.sentiment||'neutral'}"><span class="extracted-item-tk">${s.ticker}</span> ${s.headline} <span style="color:var(--muted)">(${s.sentiment}, ${s.relevance})</span></div>`;
+      });
+    }
+    if (!d.macroItems?.length && !d.perStock?.length) {
+      html += '<div class="news-empty">No trading-relevant content found in pasted text.</div>';
+    }
+    out.innerHTML = html;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '🧠 Extract trading-relevant items';
+    out.innerHTML = '<div class="news-empty">Error: ' + e.message + '</div>';
+  }
+}
+
+// Load regime on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadRegime);
+} else {
+  loadRegime();
+}
+// Refresh regime every 5 minutes
+setInterval(loadRegime, 5 * 60 * 1000);
 
 function sortC(by, btn) {
   document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
