@@ -101,6 +101,22 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .extracted-item.bearish{border-left:3px solid var(--red);}
 .extracted-item.neutral{border-left:3px solid var(--muted2);}
 .extracted-item-tk{font-weight:700;color:var(--blue);margin-right:6px;}
+/* ── WATCHOUT TAGS (informational only — RSI extreme etc.) ── */
+.watchout-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+.watchout-tag{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-family:'DM Mono',monospace;font-size:0.58rem;letter-spacing:0.5px;background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.25);color:var(--yellow);}
+/* ── RULE CHECKLIST (why this mode?) ── */
+.rule-toggle{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:transparent;border:1px dashed var(--border);border-radius:5px;color:var(--muted2);font-family:'DM Mono',monospace;font-size:0.58rem;cursor:pointer;margin-top:8px;letter-spacing:1px;}
+.rule-toggle:hover{color:var(--text);border-color:var(--muted2);}
+.rule-list{margin-top:8px;padding:9px 11px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:7px;display:none;}
+.rule-list.open{display:block;}
+.rule-list-title{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:7px;}
+.rule-item{display:flex;align-items:flex-start;gap:7px;padding:4px 0;font-size:0.66rem;line-height:1.4;border-bottom:1px dashed rgba(255,255,255,0.04);}
+.rule-item:last-child{border-bottom:none;}
+.rule-check{font-size:0.74rem;flex-shrink:0;width:14px;}
+.rule-check.pass{color:var(--green);}
+.rule-check.fail{color:var(--red);}
+.rule-label{color:var(--text);flex:1;}
+.rule-detail{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);margin-left:4px;}
 .rc strong{color:var(--green);font-size:0.95rem;}
 /* STOCK CARD */
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:9px;transition:all 0.2s;position:relative;overflow:hidden;}
@@ -286,6 +302,57 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <button class="vf-btn" onclick="setView('momentum',this)">📈 Momentum</button>
       <button class="vf-btn" onclick="setView('setup',this)">🎯 Setups</button>
       <button class="vf-btn" onclick="setView('avoid',this)">⚠️ Avoid</button>
+      <button class="vf-btn" onclick="toggleModeRef()" style="flex:0;">📖 Mode Rules</button>
+    </div>
+    <div id="modeRef" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;margin-bottom:10px;">📖 Mode Classification Rules</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:10px;font-size:0.72rem;">
+        <div style="border-left:3px solid var(--red);padding-left:10px;">
+          <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Major</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 50 MA · More than 3% below 50 MA · Volume > 1.2× avg · 20 MA below 50 MA</div>
+        </div>
+        <div style="border-left:3px solid var(--red);padding-left:10px;">
+          <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Early Warning</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 21 EMA · 21 EMA slope negative · 2%+ below 21 EMA · Volume > 1.2× avg</div>
+        </div>
+        <div style="border-left:3px solid var(--orange);padding-left:10px;">
+          <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 LATE / EXHAUSTED MOMENTUM</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 25%+ above 20 MA · OR 15%+ above 20 MA with 2.5× volume (climactic)</div>
+        </div>
+        <div style="border-left:3px solid var(--orange);padding-left:10px;">
+          <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 EXTENDED MOMENTUM</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 10-25% above 20 MA · NOT climactic. Don't chase — wait for pullback to 9EMA/21EMA.</div>
+        </div>
+        <div style="border-left:3px solid var(--green);padding-left:10px;">
+          <div style="color:var(--green);font-weight:600;margin-bottom:3px;">🟢 EARLY MOMENTUM (fresh breakout)</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · Broke out in last 15 days · Holding above breakout · Not extended</div>
+        </div>
+        <div style="border-left:3px solid var(--green);padding-left:10px;">
+          <div style="color:var(--green);font-weight:600;margin-bottom:3px;">🟢 ESTABLISHED MOMENTUM</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Bullish MAs (9 > 21 > 20 > 50) · Above 20 MA · 20 MA rising · &lt; 10% above 20 MA</div>
+        </div>
+        <div style="border-left:3px solid var(--blue);padding-left:10px;">
+          <div style="color:var(--blue);font-weight:600;margin-bottom:3px;">🔵 SETUP READY</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Valid swing high/low · Price in .500-.618 fib zone · Volume drying</div>
+        </div>
+        <div style="border-left:3px solid var(--purple);padding-left:10px;">
+          <div style="color:var(--purple);font-weight:600;margin-bottom:3px;">🟣 SETUP FORMING</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Tight 20-day box (&lt;15% range) · Volume drying (>10%)</div>
+        </div>
+        <div style="border-left:3px solid var(--muted2);padding-left:10px;">
+          <div style="color:var(--muted2);font-weight:600;margin-bottom:3px;">⚪ WAIT / No Edge</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Doesn't fit any rule above. Mixed signals — no actionable setup.</div>
+        </div>
+      </div>
+      <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--border);font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);line-height:1.6;">
+        <strong style="color:var(--text);">Common variables:</strong><br>
+        <strong>bullishMA</strong> = price > 9 EMA, 21 EMA > 20 MA, 20 MA > 50 MA<br>
+        <strong>inMomentum</strong> = bullishMA + price above 20 MA + 20 MA slope rising<br>
+        <strong>distMa20</strong> = % distance from 20 MA · <strong>distEma21</strong> = % from 21 EMA<br>
+        <strong>volRatio5_20</strong> = recent 5-day volume / 20-day avg volume<br>
+        <strong>volDryPct</strong> = how much vol has dried up vs prior 10 days<br>
+        <strong>fibPosition</strong> = where price sits in fib range (0 = at swing low, 1 = at swing high)
+      </div>
     </div>
     <div class="paste-box" id="pasteBox" style="display:none;">
       <div class="paste-title">📝 Paste WhatsApp / Telegram / News content — Claude extracts relevant items</div>
@@ -699,10 +766,23 @@ function makeCard(s) {
   // Mode classification box (new)
   const md = mom.mode || { mode: 'UNKNOWN', label: 'No mode data', action: '', color: 'gray', reasoning: '' };
   const modePill = `<span class="mode-pill mode-${md.mode}">${md.label}</span>`;
+  const ruleId = 'rules-' + s.ticker + '-' + Math.random().toString(36).slice(2, 8);
+  const checklistHtml = md.ruleChecklist && md.ruleChecklist.length ? `
+    <button class="rule-toggle" onclick="document.getElementById('${ruleId}').classList.toggle('open'); this.textContent = document.getElementById('${ruleId}').classList.contains('open') ? '▼ Hide rule' : '▶ Why this mode?';">▶ Why this mode?</button>
+    <div class="rule-list" id="${ruleId}">
+      <div class="rule-list-title">Rules that triggered "${md.label}"</div>
+      ${md.ruleChecklist.map(r => `<div class="rule-item">
+        <span class="rule-check ${r.satisfied ? 'pass' : 'fail'}">${r.satisfied ? '✓' : '✗'}</span>
+        <span class="rule-label">${r.label}${r.detail ? `<span class="rule-detail"> · ${r.detail}</span>` : ''}</span>
+      </div>`).join('')}
+    </div>` : '';
+  
   const modeBox = md.mode !== 'UNKNOWN' && md.action ? `
     <div class="mode-action-box mode-${md.mode}">
       <div style="font-weight:600;margin-bottom:2px;">${md.action}</div>
       <div class="mode-action-reasoning">${md.reasoning || ''}</div>
+      ${md.watchouts && md.watchouts.length ? `<div class="watchout-row">${md.watchouts.map(w => `<span class="watchout-tag">⚠️ ${w}</span>`).join('')}</div>` : ''}
+      ${checklistHtml}
     </div>` : '';
   
   // Build entry strategy section based on mode (replaces the old levelsHtml for momentum modes)
@@ -735,10 +815,19 @@ function makeCard(s) {
     }
   }
   
-  // MA snapshot section (new — shows 9 EMA, 20 MA, 50 MA together)
+  // MA snapshot — shows 9 EMA, 21 EMA (trend break warning), 20 MA, 50 MA, RSI
+  // Highlight 21 EMA in red if lost, yellow if close
+  const dEma21 = md.facts?.distEma21;
+  const ema21Color = mom.ema21 ? (
+    dEma21 < 0 ? 'var(--red)' :
+    dEma21 < 2 ? 'var(--yellow)' :
+    'var(--muted2)'
+  ) : 'var(--muted2)';
+  
   const maSnapshot = (mom.ema9 || mom.ma20) ? `
-    <div style="display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);margin-bottom:10px;flex-wrap:wrap;">
+    <div style="display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);margin-bottom:10px;flex-wrap:wrap;align-items:center;">
       ${mom.ema9 ? `<span>9EMA $${mom.ema9.toFixed(2)}</span>` : ''}
+      ${mom.ema21 ? `<span style="color:${ema21Color};font-weight:600;">21EMA $${mom.ema21.toFixed(2)}${dEma21 < 0 ? ' ⚠️ LOST' : dEma21 < 2 ? ' ⚠️ NEAR' : ''}</span>` : ''}
       ${mom.ma20 ? `<span>20MA $${mom.ma20.toFixed(2)}</span>` : ''}
       ${mom.ma50 ? `<span>50MA $${mom.ma50.toFixed(2)}</span>` : ''}
       ${md.facts?.rsi ? `<span>RSI ${md.facts.rsi.toFixed(0)}</span>` : ''}
@@ -780,6 +869,11 @@ function renderCards(data) {
   filtered.forEach(s => div.appendChild(makeCard(s)));
   document.getElementById('rcc').textContent = filtered.length;
   document.getElementById('viewFilter').style.display = data.length > 0 ? 'flex' : 'none';
+}
+
+function toggleModeRef() {
+  const ref = document.getElementById('modeRef');
+  ref.style.display = ref.style.display === 'none' ? 'block' : 'none';
 }
 
 let currentView = 'all';
