@@ -85,9 +85,10 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   const tighteningPct = priorRange10 > 0 ? ((priorRange10 - recentRange10) / priorRange10) * 100 : 0;
 
   // ── STEP 4: Moving averages ──
-  const ma10 = closes.slice(-10).reduce((a, b) => a + b, 0) / 10;
-  const ma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-  const ma50 = closes.length >= 50 ? closes.slice(-50).reduce((a, b) => a + b, 0) / 50 : ma20;
+  // EMAs only — consistent with mode classifier
+  const ema9_internal = calcEMA(closes.slice(-40), 9);
+  const ema21_internal = calcEMA(closes.slice(-60), 21);
+  const ema50_internal = closes.length >= 50 ? calcEMA(closes.slice(-150), 50) : ema21_internal;
 
   // ── STEP 5: Higher lows check (last 5 candles) ──
   const recentLows = last5.map(c => c.l);
@@ -135,7 +136,7 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       } else {
         details.push(`⚠️ Volume ${volSpikeRatio.toFixed(1)}× avg — watch for vol confirmation`);
       }
-      if (currentPrice > ma10 && ma10 > ma20) details.push(`📊 MAs aligned bullishly`);
+      if (currentPrice > ema9 && ema9 > ema21) details.push(`📊 EMAs aligned bullishly (price > 9 EMA > 21 EMA)`);
     }
   }
   // === COILING: Price inside tight consolidation
@@ -192,9 +193,9 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       if (greenDays >= 7) details.push(`🟢 ${greenDays}/10 green days`);
     } else {
       // Explain WHY it's a wait
-      if (currentPrice < ma20) {
-        reason = 'Below MA20 — downtrend, avoid';
-        details.push(`📉 Price below 20-day MA — no uptrend`);
+      if (currentPrice < ema21_internal) {
+        reason = 'Below 21 EMA — downtrend, avoid';
+        details.push(`📉 Price below 21 EMA — no uptrend`);
       } else if (pctAboveConsol > 5 && pctAboveConsol < 20) {
         reason = 'Slightly extended — wait for tighter setup';
         details.push(`📏 ${pctAboveConsol.toFixed(0)}% above box — needs consolidation`);
@@ -205,8 +206,6 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     }
   }
 
-  const ema9 = calcEMA(closes.slice(-40), 9);
-  const ema21 = calcEMA(closes.slice(-60), 21);
   const modeClass = classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow);
 
   return {
@@ -220,11 +219,9 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     volSpikeRatio: parseFloat(volSpikeRatio.toFixed(2)),
     tighteningPct: parseFloat(tighteningPct.toFixed(1)),
     pctAboveConsol: parseFloat(pctAboveConsol.toFixed(1)),
-    ema9: parseFloat(ema9.toFixed(2)),
-    ema21: parseFloat(ema21.toFixed(2)),
-    ma10: parseFloat(ma10.toFixed(2)),
-    ma20: parseFloat(ma20.toFixed(2)),
-    ma50: parseFloat(ma50.toFixed(2)),
+    ema9: parseFloat(ema9_internal.toFixed(2)),
+    ema21: parseFloat(ema21_internal.toFixed(2)),
+    ema50: parseFloat(ema50_internal.toFixed(2)),
     mode: modeClass,
   };
 }

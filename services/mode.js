@@ -56,17 +56,15 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   const last20 = candles.slice(-20);
   const prior10 = candles.slice(-20, -10);
   
-  // Moving averages — 9 EMA, 21 EMA (NEW — trend break warning), 20 SMA, 50 SMA
+  // EMAs only — 9 / 21 / 50 (consistent math, faster reaction than SMAs)
   const ema9 = calcEMA(closes.slice(-40), 9);
-  const ema21 = calcEMA(closes.slice(-60), 21);  // Faster than 20 SMA — earlier trend-break signal
-  const ma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-  const ma50 = closes.length >= 50 ? closes.slice(-50).reduce((a, b) => a + b, 0) / 50 : ma20;
+  const ema21 = calcEMA(closes.slice(-60), 21);   // Replaces 20 SMA — earlier trend-break signal
+  const ema50 = calcEMA(closes.slice(-150), 50);  // Replaces 50 SMA — primary trend
   
-  // Distance from MAs (%)
+  // Distance from EMAs (%)
   const distEma9 = ((currentPrice - ema9) / ema9) * 100;
   const distEma21 = ((currentPrice - ema21) / ema21) * 100;
-  const distMa20 = ((currentPrice - ma20) / ma20) * 100;
-  const distMa50 = ((currentPrice - ma50) / ma50) * 100;
+  const distEma50 = ((currentPrice - ema50) / ema50) * 100;
   
   // RSI
   const rsi = calcRSI(closes);
@@ -91,46 +89,43 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   const fib618 = validFib ? fibSwingHigh - fibRange * 0.618 : 0;
   const fibPosition = validFib ? (currentPrice - fibSwingLow) / (fibSwingHigh - fibSwingLow) : 0.5;
   
-  // 20MA trend slope (last 10 days)
-  const ma20_10ago = closes.slice(-30, -10).reduce((a, b) => a + b, 0) / 20;
-  const ma20Slope = ((ma20 - ma20_10ago) / ma20_10ago) * 100;
+  // (21EMA slope removed — using ema21Slope above instead)
   
-  // MA STRUCTURE — KEY checks for momentum and trend health
+  // EMA STRUCTURE — KEY checks for momentum and trend health
   const aboveEma9 = currentPrice > ema9;
   const aboveEma21 = currentPrice > ema21;
-  const aboveMA20 = currentPrice > ma20;
-  const aboveMA50 = currentPrice > ma50;
+  const aboveEma50 = currentPrice > ema50;
   
-  // Trend slope on 21 EMA (faster signal than 20 SMA slope)
+  // Trend slope on 21 EMA (last 10 days)
   const ema21_10ago = calcEMA(closes.slice(-70, -10), 21);
   const ema21Slope = ((ema21 - ema21_10ago) / ema21_10ago) * 100;
   
-  // Bullish structure: above 9EMA, 21 EMA above MA20, MA20 above MA50
-  const bullishMA = aboveEma9 && ema21 > ma20 * 0.99 && ma20 > ma50;
+  // Bullish alignment: price > 9 EMA > 21 EMA > 50 EMA
+  // All EMAs stacked in ascending order = clear uptrend
+  const bullishMA = aboveEma9 && ema9 > ema21 && ema21 > ema50;
   
-  // TREND BREAK SIGNALS — using 21 EMA as primary warning
-  const lostEma21 = !aboveEma21 && ema21Slope < 0;   // closed below 21 EMA AND slope rolling over
-  const nearEma21Break = aboveEma21 && distEma21 < 1 && ema21Slope < 0.3;  // bouncing on 21EMA with weakening slope
-  const lostMa50 = !aboveMA50 && ma20 < ma50;  // deeper break — already in trouble
+  // TREND BREAK SIGNALS — 21 EMA is the primary warning, 50 EMA is the major break
+  const lostEma21 = !aboveEma21 && ema21Slope < 0;
+  const nearEma21Break = aboveEma21 && distEma21 < 1 && ema21Slope < 0.3;
+  const lostEma50 = !aboveEma50 && ema21 < ema50;  // deeper break
   
   // Recent breakout check
   const breakout = findRecentBreakout(candles, 60);
   
-  // Facts object
+  // Facts object — EMAs only
   const facts = {
     rsi: +rsi.toFixed(1),
-    ema9: +ema9.toFixed(2), ema21: +ema21.toFixed(2), ma20: +ma20.toFixed(2), ma50: +ma50.toFixed(2),
-    distEma9: +distEma9.toFixed(2), distEma21: +distEma21.toFixed(2), distMa20: +distMa20.toFixed(2), distMa50: +distMa50.toFixed(2),
+    ema9: +ema9.toFixed(2), ema21: +ema21.toFixed(2), ema50: +ema50.toFixed(2),
+    distEma9: +distEma9.toFixed(2), distEma21: +distEma21.toFixed(2), distEma50: +distEma50.toFixed(2),
     ema21Slope: +ema21Slope.toFixed(2),
     consolHigh: +consolHigh.toFixed(2), consolLow: +consolLow.toFixed(2), consolRangePct: +consolRangePct.toFixed(1),
     daysSinceBreakout: breakout?.daysAgo,
     holdingBreakout: breakout && currentPrice > breakout.breakoutLevel,
     volRatio5_20: +volRatio5_20.toFixed(2),
     volDryPct: +volDryPct.toFixed(1),
-    ma20Slope: +ma20Slope.toFixed(2),
     fibPosition: +fibPosition.toFixed(2),
     fib50: +fib50.toFixed(2), fib618: +fib618.toFixed(2),
-    bullishMA, lostEma21, lostMa50,
+    bullishMA, lostEma21, lostEma50,
   };
 
   // ═══════════════════════════════════════════════════════════════════
@@ -141,19 +136,19 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   // 3. Then check SETUP modes (no uptrend, basing/pullback)
   // ═══════════════════════════════════════════════════════════════════
   
-  // ── 1. TREND BREAK (using 21 EMA as primary trigger — earlier than 50MA) ──
-  // Major break: lost 50MA + downtrend — already deep in trouble
-  if (lostMa50 && distMa50 < -3) {
+  // ── 1. TREND BREAK (using 21 EMA as primary trigger — earlier than 50EMA) ──
+  // Major break: lost 50EMA + downtrend — already deep in trouble
+  if (lostEma50 && distEma50 < -3) {
     return {
       mode: 'TREND_BREAK',
       label: 'Trend Break — Major',
       color: 'red',
       action: 'Exit / avoid. Trend is broken. Wait for new base.',
-      reasoning: `Lost 50MA by ${Math.abs(distMa50).toFixed(1)}% · 21 EMA also broken${volRatio5_20 > 1.2 ? ' · vol confirming' : ''}`,
+      reasoning: `Lost 50 EMA by ${Math.abs(distEma50).toFixed(1)}% · 21 EMA also broken${volRatio5_20 > 1.2 ? ' · vol confirming' : ''}`,
       ruleChecklist: [
-        ruleItem('Price below 50 MA', !aboveMA50, `$${currentPrice.toFixed(2)} vs 50MA $${ma50.toFixed(2)}`),
-        ruleItem('20 MA below 50 MA (bearish cross)', ma20 < ma50, `20MA $${ma20.toFixed(2)} vs 50MA $${ma50.toFixed(2)}`),
-        ruleItem('More than 3% below 50 MA', distMa50 < -3, `${distMa50.toFixed(1)}% from 50MA`),
+        ruleItem('Price below 50 EMA', !aboveEma50, `$${currentPrice.toFixed(2)} vs 50EMA $${ema50.toFixed(2)}`),
+        ruleItem('20 MA below 50 EMA (bearish cross)', ema21 < ema50, `21EMA $${ema21.toFixed(2)} vs 50EMA $${ema50.toFixed(2)}`),
+        ruleItem('More than 3% below 50 EMA', distEma50 < -3, `${distEma50.toFixed(1)}% from 50EMA`),
       ],
       watchouts: volRatio5_20 > 1.2 ? [`Vol ${volRatio5_20.toFixed(1)}× confirming selling pressure`] : [`Vol ${volRatio5_20.toFixed(1)}× — low volume but break still bearish`],
       entryStrategy: null,
@@ -167,7 +162,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       mode: 'TREND_BREAK',
       label: 'Trend Break — Early Warning',
       color: 'red',
-      action: 'Lost 21 EMA. Cut size or exit. 50MA next support.',
+      action: 'Lost 21 EMA. Cut size or exit. 50EMA next support.',
       reasoning: `Lost 21 EMA by ${Math.abs(distEma21).toFixed(1)}% · slope ${ema21Slope.toFixed(1)}%/10d${volRatio5_20 > 1.2 ? ' · vol confirming' : ''}`,
       ruleChecklist: [
         ruleItem('Price below 21 EMA', !aboveEma21, `$${currentPrice.toFixed(2)} vs 21EMA $${ema21.toFixed(2)}`),
@@ -177,7 +172,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       watchouts: [volRatio5_20 > 1.2 ? `Vol ${volRatio5_20.toFixed(1)}× confirming break` : `Vol ${volRatio5_20.toFixed(1)}× — break still valid, watch for follow-through`],
       entryStrategy: {
         type: 'exit',
-        stopBelow: ma50,
+        stopBelow: ema50,
         stopLabel: '50 MA (deeper support)',
       },
       facts, confidence: 80,
@@ -185,8 +180,8 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   }
   
   // ── 2. MOMENTUM CHECK ──
-  // A stock is in MOMENTUM if MAs are aligned bullishly AND price above 20MA AND trend rising
-  const inMomentum = bullishMA && aboveMA20 && ma20Slope > 0;
+  // A stock is in MOMENTUM if MAs are aligned bullishly AND price above 21EMA AND trend rising
+  const inMomentum = bullishMA && aboveEma21 && ema21Slope > 0;
   
   if (inMomentum) {
     // Build informational "watchout" tags — RSI extreme is INFO, not a gate
@@ -217,17 +212,17 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     
     // ── CLASSIFICATION BASED ON MA STRUCTURE + EXTENSION ONLY ──
     
-    // LATE/EXHAUSTED MOMENTUM: very far from 20MA OR climactic volume on extended move
-    if (distMa20 > 25) {
+    // LATE/EXHAUSTED MOMENTUM: very far from 21EMA OR climactic volume on extended move
+    if (distEma21 > 25) {
       return {
         mode: 'LATE_MOMENTUM',
         label: 'Late/Exhausted Momentum',
         color: 'orange',
         action: "Don't chase. Wait for pullback to 9EMA or 21EMA.",
-        reasoning: `Extended ${distMa20.toFixed(0)}% above 20MA${volRatio5_20 > 2.0 ? ' · climactic vol' : ''}`,
+        reasoning: `Extended ${distEma21.toFixed(0)}% above 21EMA${volRatio5_20 > 2.0 ? ' · climactic vol' : ''}`,
         ruleChecklist: [
-          ruleItem('In momentum (bullish MAs + above 20MA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above20MA=${aboveMA20}, slope=${ma20Slope.toFixed(2)}%`),
-          ruleItem('25%+ above 20 MA (very extended)', distMa20 > 25, `${distMa20.toFixed(1)}% above 20MA (need >25)`),
+          ruleItem('In momentum (bullish MAs + above 21EMA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above21EMA=${aboveEma21}, slope=${ema21Slope.toFixed(2)}%`),
+          ruleItem('25%+ above 21 EMA (very extended)', distEma21 > 25, `${distEma21.toFixed(1)}% above 21EMA (need >25)`),
         ],
         watchouts,
         entryStrategy: {
@@ -243,17 +238,17 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       };
     }
     
-    // EXTENDED MOMENTUM: 10-25% above 20MA — structure intact, just don't chase
-    if (distMa20 > 10) {
+    // EXTENDED MOMENTUM: 10-25% above 21EMA — structure intact, just don't chase
+    if (distEma21 > 10) {
       return {
         mode: 'EARLY_MOMENTUM',
         label: 'Extended Momentum',
         color: 'orange',
         action: `Don't chase here. Wait for pullback to 9EMA $${ema9.toFixed(2)} or 21EMA $${ema21.toFixed(2)}.`,
-        reasoning: `${distMa20.toFixed(1)}% above 20MA · MAs aligned · trend +${ma20Slope.toFixed(1)}%/10d`,
+        reasoning: `${distEma21.toFixed(1)}% above 21EMA · MAs aligned · trend +${ema21Slope.toFixed(1)}%/10d`,
         ruleChecklist: [
-          ruleItem('In momentum (bullish MAs + above 20MA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above20MA=${aboveMA20}, slope=${ma20Slope.toFixed(2)}%`),
-          ruleItem('10-25% above 20 MA (extended but not yet exhausted)', distMa20 > 10 && distMa20 <= 25, `${distMa20.toFixed(1)}% above 20MA`),
+          ruleItem('In momentum (bullish MAs + above 21EMA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above21EMA=${aboveEma21}, slope=${ema21Slope.toFixed(2)}%`),
+          ruleItem('10-25% above 21 EMA (extended but not yet exhausted)', distEma21 > 10 && distEma21 <= 25, `${distEma21.toFixed(1)}% above 21EMA`),
         ],
         watchouts,
         entryStrategy: {
@@ -276,12 +271,12 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         label: 'Early Momentum (fresh breakout)',
         color: 'green',
         action: `Momentum buy. Broke out ${breakout.daysAgo} days ago at $${breakout.breakoutLevel.toFixed(2)} — add on pullbacks to 9EMA.`,
-        reasoning: `Fresh breakout · ${distMa20.toFixed(1)}% above 20MA · MAs aligned`,
+        reasoning: `Fresh breakout · ${distEma21.toFixed(1)}% above 21EMA · MAs aligned`,
         ruleChecklist: [
-          ruleItem('In momentum (bullish MAs + above 20MA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above20MA=${aboveMA20}, slope=${ma20Slope.toFixed(2)}%`),
+          ruleItem('In momentum (bullish MAs + above 21EMA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above21EMA=${aboveEma21}, slope=${ema21Slope.toFixed(2)}%`),
           ruleItem('Broke out within last 15 days', breakout && breakout.daysAgo <= 15, breakout ? `${breakout.daysAgo} days ago at $${breakout.breakoutLevel.toFixed(2)}` : 'no recent breakout'),
           ruleItem('Holding above breakout level', breakout && currentPrice > breakout.breakoutLevel, breakout ? `$${currentPrice.toFixed(2)} vs $${breakout.breakoutLevel.toFixed(2)}` : '—'),
-          ruleItem('NOT extended (< 10% above 20 MA)', distMa20 <= 10, `${distMa20.toFixed(1)}% above 20MA`),
+          ruleItem('NOT extended (< 10% above 21 EMA)', distEma21 <= 10, `${distEma21.toFixed(1)}% above 21EMA`),
         ],
         watchouts,
         entryStrategy: {
@@ -297,7 +292,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       };
     }
     
-    // ESTABLISHED MOMENTUM: in uptrend, less than 10% above 20MA — healthy spot
+    // ESTABLISHED MOMENTUM: in uptrend, less than 10% above 21EMA — healthy spot
     return {
       mode: 'ESTABLISHED_MOMENTUM',
       label: 'Established Momentum',
@@ -305,12 +300,12 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       action: distEma9 < 2 
         ? `Buy here near 9EMA $${ema9.toFixed(2)}. Add on pullback to 21EMA $${ema21.toFixed(2)}.`
         : `Hold / trail. Add on pullback to 9EMA $${ema9.toFixed(2)} or 21EMA $${ema21.toFixed(2)}.`,
-      reasoning: `Healthy uptrend · ${distMa20.toFixed(1)}% above 20MA · trend +${ma20Slope.toFixed(1)}%/10d`,
+      reasoning: `Healthy uptrend · ${distEma21.toFixed(1)}% above 21EMA · trend +${ema21Slope.toFixed(1)}%/10d`,
       ruleChecklist: [
-        ruleItem('In momentum: bullish MA alignment (9EMA > 21EMA > 20MA > 50MA)', bullishMA, `9EMA $${ema9.toFixed(2)} | 21EMA $${ema21.toFixed(2)} | 20MA $${ma20.toFixed(2)} | 50MA $${ma50.toFixed(2)}`),
-        ruleItem('Price above 20 MA', aboveMA20, `$${currentPrice.toFixed(2)} vs 20MA $${ma20.toFixed(2)}`),
-        ruleItem('20 MA rising (slope > 0)', ma20Slope > 0, `${ma20Slope.toFixed(2)}%/10d`),
-        ruleItem('NOT extended (< 10% above 20 MA)', distMa20 <= 10, `${distMa20.toFixed(1)}% above 20MA (need ≤10)`),
+        ruleItem('In momentum: bullish MA alignment (price > 9EMA > 21EMA > 50EMA)', bullishMA, `Price $${currentPrice.toFixed(2)} | 9EMA $${ema9.toFixed(2)} | 21EMA $${ema21.toFixed(2)} | 50EMA $${ema50.toFixed(2)}`),
+        ruleItem('Price above 21 EMA', aboveEma21, `$${currentPrice.toFixed(2)} vs 21EMA $${ema21.toFixed(2)}`),
+        ruleItem('20 MA rising (slope > 0)', ema21Slope > 0, `${ema21Slope.toFixed(2)}%/10d`),
+        ruleItem('NOT extended (< 10% above 21 EMA)', distEma21 <= 10, `${distEma21.toFixed(1)}% above 21EMA (need ≤10)`),
         ruleItem('NOT fresh breakout (otherwise → Early Momentum)', !(breakout && breakout.daysAgo <= 15), breakout ? `last breakout ${breakout.daysAgo} days ago` : 'no recent breakout'),
       ],
       watchouts: [...watchouts, ...(nearEma21Break ? [`Watch 21 EMA $${ema21.toFixed(2)} — bouncing on it now, break = exit signal`] : [])],
@@ -338,7 +333,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       action: `Enter on bounce. Fib zone $${fib618.toFixed(2)}-$${fib50.toFixed(2)}.`,
       reasoning: `In .500-.618 fib zone${volDryPct > 5 ? ' · vol drying ' + volDryPct.toFixed(0) + '%' : ''} · ready for bounce`,
       ruleChecklist: [
-        ruleItem('NOT in momentum', !inMomentum, `bullishMA=${bullishMA}, slope=${ma20Slope.toFixed(2)}%`),
+        ruleItem('NOT in momentum', !inMomentum, `bullishMA=${bullishMA}, slope=${ema21Slope.toFixed(2)}%`),
         ruleItem('Valid swing high/low identified', validFib, `swing high $${fibSwingHigh.toFixed(2)} / low $${fibSwingLow.toFixed(2)}`),
         ruleItem('Price in .500-.618 fib retracement zone', fibPosition >= 0.382 && fibPosition <= 0.62, `fibPos ${fibPosition.toFixed(2)} (need 0.38-0.62)`),
       ],
@@ -372,25 +367,25 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         type: 'breakout_or_pullback',
         breakoutLevel: consolHigh * 1.02,
         breakoutLabel: 'Breakout: 2% above box',
-        pullbackLevel: validFib ? fib50 : ma20,
-        pullbackLabel: validFib ? '.500 fib' : '20MA',
+        pullbackLevel: validFib ? fib50 : ema21,
+        pullbackLabel: validFib ? '.500 fib' : '21EMA',
       },
       facts, confidence: 60,
     };
   }
   
-  // SLIGHT UPTREND, NO CLEAR SETUP: stock is above 20MA but MAs not aligned
-  if (aboveMA20 && !lostMa50) {
+  // SLIGHT UPTREND, NO CLEAR SETUP: stock is above 21EMA but MAs not aligned
+  if (aboveEma21 && !lostEma50) {
     return {
       mode: 'WAIT',
       label: 'Choppy — no edge',
       color: 'gray',
-      action: 'Above 20MA but no clear momentum or setup. Watch.',
-      reasoning: `Above 20MA but MAs not aligned (9EMA ${distEma9>0?'+':''}${distEma9.toFixed(1)}%, 50MA ${distMa50>0?'+':''}${distMa50.toFixed(1)}%)`,
+      action: 'Above 21EMA but no clear momentum or setup. Watch.',
+      reasoning: `Above 21EMA but MAs not aligned (9EMA ${distEma9>0?'+':''}${distEma9.toFixed(1)}%, 50EMA ${distEma50>0?'+':''}${distEma50.toFixed(1)}%)`,
       ruleChecklist: [
-        ruleItem('Price above 20 MA', aboveMA20, `$${currentPrice.toFixed(2)} vs $${ma20.toFixed(2)}`),
-        ruleItem('Above 50 MA', aboveMA50, `${distMa50.toFixed(1)}% from 50MA`),
-        ruleItem('MAs NOT aligned bullishly (would be momentum)', !bullishMA, `9EMA $${ema9.toFixed(2)} | 21EMA $${ema21.toFixed(2)} | 20MA $${ma20.toFixed(2)}`),
+        ruleItem('Price above 21 EMA', aboveEma21, `$${currentPrice.toFixed(2)} vs $${ema21.toFixed(2)}`),
+        ruleItem('Above 50 MA', aboveEma50, `${distEma50.toFixed(1)}% from 50EMA`),
+        ruleItem('MAs NOT aligned bullishly (would be momentum)', !bullishMA, `9EMA $${ema9.toFixed(2)} | 21EMA $${ema21.toFixed(2)} | 21EMA $${ema21.toFixed(2)}`),
         ruleItem('NOT in fib zone (would be Setup Ready)', !(validFib && fibPosition >= 0.382 && fibPosition <= 0.62), `fibPos ${fibPosition.toFixed(2)}`),
         ruleItem('NOT a tight base (would be Setup Forming)', !(consolRangePct < 15), `${consolRangePct.toFixed(0)}% range (need <15)`),
       ],
@@ -404,10 +399,10 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     mode: 'WAIT',
     label: 'Downtrend or no setup',
     color: 'gray',
-    action: 'Below 20MA or no setup. Avoid for now.',
-    reasoning: `${aboveMA20?'Above':'Below'} 20MA · ${distMa20.toFixed(1)}% from 20MA`,
+    action: 'Below 21EMA or no setup. Avoid for now.',
+    reasoning: `${aboveEma21?'Above':'Below'} 21EMA · ${distEma21.toFixed(1)}% from 21EMA`,
     ruleChecklist: [
-      ruleItem('Price above 20 MA', aboveMA20, `$${currentPrice.toFixed(2)} vs $${ma20.toFixed(2)}`),
+      ruleItem('Price above 21 EMA', aboveEma21, `$${currentPrice.toFixed(2)} vs $${ema21.toFixed(2)}`),
       ruleItem('No bullish setup detected', true, 'Not in momentum, not in fib zone, not basing'),
     ],
     entryStrategy: null,
