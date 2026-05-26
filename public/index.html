@@ -309,7 +309,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:10px;font-size:0.72rem;">
         <div style="border-left:3px solid var(--red);padding-left:10px;">
           <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Major</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 50 MA · More than 3% below 50 MA · 20 MA below 50 MA</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 50 EMA · More than 3% below 50 EMA · 21 EMA below 50 EMA</div>
         </div>
         <div style="border-left:3px solid var(--red);padding-left:10px;">
           <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Early Warning</div>
@@ -317,11 +317,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         </div>
         <div style="border-left:3px solid var(--orange);padding-left:10px;">
           <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 LATE / EXHAUSTED MOMENTUM</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 25%+ above 20 MA (very extended)</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 25%+ above 21 EMA (very extended)</div>
         </div>
         <div style="border-left:3px solid var(--orange);padding-left:10px;">
           <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 EXTENDED MOMENTUM</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 10-25% above 20 MA · NOT climactic. Don't chase — wait for pullback to 9EMA/21EMA.</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 10-25% above 21 EMA · NOT climactic. Don't chase — wait for pullback to 9 EMA / 21 EMA.</div>
         </div>
         <div style="border-left:3px solid var(--green);padding-left:10px;">
           <div style="color:var(--green);font-weight:600;margin-bottom:3px;">🟢 EARLY MOMENTUM (fresh breakout)</div>
@@ -329,7 +329,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         </div>
         <div style="border-left:3px solid var(--green);padding-left:10px;">
           <div style="color:var(--green);font-weight:600;margin-bottom:3px;">🟢 ESTABLISHED MOMENTUM</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Bullish MAs (9 > 21 > 20 > 50) · Above 20 MA · 20 MA rising · &lt; 10% above 20 MA</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Bullish EMAs aligned (price > 9 EMA > 21 EMA > 50 EMA) · 21 EMA rising · &lt; 10% above 21 EMA</div>
         </div>
         <div style="border-left:3px solid var(--blue);padding-left:10px;">
           <div style="color:var(--blue);font-weight:600;margin-bottom:3px;">🔵 SETUP READY</div>
@@ -346,9 +346,9 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
       <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--border);font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);line-height:1.6;">
         <strong style="color:var(--text);">Common variables:</strong><br>
-        <strong>bullishMA</strong> = price > 9 EMA, 21 EMA > 20 MA, 20 MA > 50 MA<br>
-        <strong>inMomentum</strong> = bullishMA + price above 20 MA + 20 MA slope rising<br>
-        <strong>distMa20</strong> = % distance from 20 MA · <strong>distEma21</strong> = % from 21 EMA<br>
+        <strong>bullishMA</strong> = price > 9 EMA AND 9 EMA > 21 EMA AND 21 EMA > 50 EMA (clean alignment)<br>
+        <strong>inMomentum</strong> = bullishMA + price above 21 EMA + 21 EMA slope rising<br>
+        <strong>distEma21</strong> = % distance from 21 EMA · <strong>distEma50</strong> = % from 50 EMA<br>
         <strong>volRatio5_20</strong> = recent 5-day volume / 20-day avg volume (informational — not used as gate)<br>
         <strong>volDryPct</strong> = how much vol has dried up vs prior 10 days (informational — not used as gate)<br>
         <strong>fibPosition</strong> = where price sits in fib range (0 = at swing low, 1 = at swing high)
@@ -811,6 +811,20 @@ function makeCard(s) {
           </div>`;
       }
       
+      // Fib reference levels — shown for momentum stocks too (deep pullback context)
+      if (es.fibReference) {
+        const fr = es.fibReference;
+        const sCurrent = s.price;
+        html += `
+          <div style="font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:12px;margin-bottom:6px;">🎯 Fibonacci Reference (deep-pullback support)</div>
+          <div class="lgrid">
+            <div class="lbox"><div class="ll">.382 Shallow</div><div class="lv" style="color:var(--m2);font-size:0.92rem">${fmt(fr.fib382)}</div><div class="ls">${((fr.fib382 - sCurrent) / sCurrent * 100).toFixed(0)}% from here</div></div>
+            <div class="lbox"><div class="ll">.500 Mid</div><div class="lv" style="color:var(--yellow);font-size:0.92rem">${fmt(fr.fib500)}</div><div class="ls">${((fr.fib500 - sCurrent) / sCurrent * 100).toFixed(0)}% from here</div></div>
+            <div class="lbox"><div class="ll">.618 Deep</div><div class="lv" style="color:var(--green);font-size:0.92rem">${fmt(fr.fib618)}</div><div class="ls">${((fr.fib618 - sCurrent) / sCurrent * 100).toFixed(0)}% — strongest support</div></div>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);margin-top:5px;text-align:right;">swing high $${fmt(fr.fibSwingHigh).replace('$','')} · swing low $${fmt(fr.fibSwingLow).replace('$','')}</div>`;
+      }
+      
       strategyHtml = html;
     } else if (es.type === 'fib') {
       strategyHtml = `
@@ -830,7 +844,7 @@ function makeCard(s) {
     }
   }
   
-  // MA snapshot — shows 9 EMA, 21 EMA (trend break warning), 20 MA, 50 MA, RSI
+  // EMA snapshot — shows 9 EMA, 21 EMA (trend break warning), 50 EMA, RSI
   // Highlight 21 EMA in red if lost, yellow if close
   const dEma21 = md.facts?.distEma21;
   const ema21Color = mom.ema21 ? (
@@ -838,13 +852,17 @@ function makeCard(s) {
     dEma21 < 2 ? 'var(--yellow)' :
     'var(--muted2)'
   ) : 'var(--muted2)';
+  const dEma50 = md.facts?.distEma50;
+  const ema50Color = mom.ema50 ? (
+    dEma50 < 0 ? 'var(--red)' :
+    'var(--muted2)'
+  ) : 'var(--muted2)';
   
-  const maSnapshot = (mom.ema9 || mom.ma20) ? `
-    <div style="display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted2);margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-      ${mom.ema9 ? `<span>9EMA $${mom.ema9.toFixed(2)}</span>` : ''}
-      ${mom.ema21 ? `<span style="color:${ema21Color};font-weight:600;">21EMA $${mom.ema21.toFixed(2)}${dEma21 < 0 ? ' ⚠️ LOST' : dEma21 < 2 ? ' ⚠️ NEAR' : ''}</span>` : ''}
-      ${mom.ma20 ? `<span>20MA $${mom.ma20.toFixed(2)}</span>` : ''}
-      ${mom.ma50 ? `<span>50MA $${mom.ma50.toFixed(2)}</span>` : ''}
+  const maSnapshot = (mom.ema9 || mom.ema21) ? `
+    <div style="display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted2);margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      ${mom.ema9 ? `<span>9 EMA $${mom.ema9.toFixed(2)}</span>` : ''}
+      ${mom.ema21 ? `<span style="color:${ema21Color};font-weight:600;">21 EMA $${mom.ema21.toFixed(2)}${dEma21 < 0 ? ' ⚠️ LOST' : dEma21 < 2 ? ' ⚠️ NEAR' : ''}</span>` : ''}
+      ${mom.ema50 ? `<span style="color:${ema50Color};">50 EMA $${mom.ema50.toFixed(2)}${dEma50 < 0 ? ' ⚠️ LOST' : ''}</span>` : ''}
       ${md.facts?.rsi ? `<span>RSI ${md.facts.rsi.toFixed(0)}</span>` : ''}
     </div>` : '';
 

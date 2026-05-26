@@ -210,6 +210,15 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       target2_618x_up: target2_618x > currentPrice ? ((target2_618x - currentPrice) / currentPrice * 100) : null,
     };
     
+    // Fibonacci reference levels — useful even in momentum (shows where deep support is)
+    const fibReference = validFib ? {
+      fib382: fibSwingHigh - fibRange * 0.382,
+      fib500: fibSwingHigh - fibRange * 0.500,
+      fib618: fibSwingHigh - fibRange * 0.618,
+      fibSwingHigh,
+      fibSwingLow,
+    } : null;
+    
     // ── CLASSIFICATION BASED ON MA STRUCTURE + EXTENSION ONLY ──
     
     // LATE/EXHAUSTED MOMENTUM: very far from 21EMA OR climactic volume on extended move
@@ -233,6 +242,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Trail under 9EMA',
           ...momTargets,
+          fibReference,
         },
         facts, confidence: 80,
       };
@@ -259,6 +269,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Trail under 21 EMA (exit on break)',
           ...momTargets,
+          fibReference,
         },
         facts, confidence: 80,
       };
@@ -287,6 +298,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
           stopLabel: 'Below 21 EMA',
           targetTrail: 'Exit on 21 EMA break',
           ...momTargets,
+          fibReference,
         },
         facts, confidence: 85,
       };
@@ -317,6 +329,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         stopLabel: 'Below 21 EMA (trend-break warning)',
         targetTrail: 'Trail under 21 EMA',
         ...momTargets,
+        fibReference,
       },
       facts, confidence: 85,
     };
