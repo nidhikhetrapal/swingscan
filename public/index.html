@@ -309,15 +309,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:10px;font-size:0.72rem;">
         <div style="border-left:3px solid var(--red);padding-left:10px;">
           <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Major</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 50 MA · More than 3% below 50 MA · Volume > 1.2× avg · 20 MA below 50 MA</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 50 MA · More than 3% below 50 MA · 20 MA below 50 MA</div>
         </div>
         <div style="border-left:3px solid var(--red);padding-left:10px;">
           <div style="color:var(--red);font-weight:600;margin-bottom:3px;">🔴 TREND BREAK — Early Warning</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 21 EMA · 21 EMA slope negative · 2%+ below 21 EMA · Volume > 1.2× avg</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">Lost 21 EMA · 21 EMA slope negative · 2%+ below 21 EMA</div>
         </div>
         <div style="border-left:3px solid var(--orange);padding-left:10px;">
           <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 LATE / EXHAUSTED MOMENTUM</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 25%+ above 20 MA · OR 15%+ above 20 MA with 2.5× volume (climactic)</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">In momentum · 25%+ above 20 MA (very extended)</div>
         </div>
         <div style="border-left:3px solid var(--orange);padding-left:10px;">
           <div style="color:var(--orange);font-weight:600;margin-bottom:3px;">🟠 EXTENDED MOMENTUM</div>
@@ -333,11 +333,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         </div>
         <div style="border-left:3px solid var(--blue);padding-left:10px;">
           <div style="color:var(--blue);font-weight:600;margin-bottom:3px;">🔵 SETUP READY</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Valid swing high/low · Price in .500-.618 fib zone · Volume drying</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Valid swing high/low · Price in .500-.618 fib zone</div>
         </div>
         <div style="border-left:3px solid var(--purple);padding-left:10px;">
           <div style="color:var(--purple);font-weight:600;margin-bottom:3px;">🟣 SETUP FORMING</div>
-          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Tight 20-day box (&lt;15% range) · Volume drying (>10%)</div>
+          <div style="color:var(--m2);font-size:0.68rem;line-height:1.5;">NOT in momentum · Tight 20-day box (&lt;15% range)</div>
         </div>
         <div style="border-left:3px solid var(--muted2);padding-left:10px;">
           <div style="color:var(--muted2);font-weight:600;margin-bottom:3px;">⚪ WAIT / No Edge</div>
@@ -349,8 +349,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <strong>bullishMA</strong> = price > 9 EMA, 21 EMA > 20 MA, 20 MA > 50 MA<br>
         <strong>inMomentum</strong> = bullishMA + price above 20 MA + 20 MA slope rising<br>
         <strong>distMa20</strong> = % distance from 20 MA · <strong>distEma21</strong> = % from 21 EMA<br>
-        <strong>volRatio5_20</strong> = recent 5-day volume / 20-day avg volume<br>
-        <strong>volDryPct</strong> = how much vol has dried up vs prior 10 days<br>
+        <strong>volRatio5_20</strong> = recent 5-day volume / 20-day avg volume (informational — not used as gate)<br>
+        <strong>volDryPct</strong> = how much vol has dried up vs prior 10 days (informational — not used as gate)<br>
         <strong>fibPosition</strong> = where price sits in fib range (0 = at swing low, 1 = at swing high)
       </div>
     </div>

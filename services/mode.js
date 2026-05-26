@@ -143,38 +143,38 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   
   // ── 1. TREND BREAK (using 21 EMA as primary trigger — earlier than 50MA) ──
   // Major break: lost 50MA + downtrend — already deep in trouble
-  if (lostMa50 && distMa50 < -3 && volRatio5_20 > 1.2) {
+  if (lostMa50 && distMa50 < -3) {
     return {
       mode: 'TREND_BREAK',
       label: 'Trend Break — Major',
       color: 'red',
       action: 'Exit / avoid. Trend is broken. Wait for new base.',
-      reasoning: `Lost 50MA by ${Math.abs(distMa50).toFixed(1)}% on ${volRatio5_20.toFixed(1)}× volume · 21 EMA also broken`,
+      reasoning: `Lost 50MA by ${Math.abs(distMa50).toFixed(1)}% · 21 EMA also broken${volRatio5_20 > 1.2 ? ' · vol confirming' : ''}`,
       ruleChecklist: [
         ruleItem('Price below 50 MA', !aboveMA50, `$${currentPrice.toFixed(2)} vs 50MA $${ma50.toFixed(2)}`),
         ruleItem('20 MA below 50 MA (bearish cross)', ma20 < ma50, `20MA $${ma20.toFixed(2)} vs 50MA $${ma50.toFixed(2)}`),
         ruleItem('More than 3% below 50 MA', distMa50 < -3, `${distMa50.toFixed(1)}% from 50MA`),
-        ruleItem('Volume > 1.2× average (selling pressure)', volRatio5_20 > 1.2, `${volRatio5_20.toFixed(2)}× vol`),
       ],
+      watchouts: volRatio5_20 > 1.2 ? [`Vol ${volRatio5_20.toFixed(1)}× confirming selling pressure`] : [`Vol ${volRatio5_20.toFixed(1)}× — low volume but break still bearish`],
       entryStrategy: null,
       facts, confidence: 85,
     };
   }
   
   // Early break: lost 21 EMA on volume, slope rolling over
-  if (lostEma21 && distEma21 < -2 && volRatio5_20 > 1.2) {
+  if (lostEma21 && distEma21 < -2) {
     return {
       mode: 'TREND_BREAK',
       label: 'Trend Break — Early Warning',
       color: 'red',
-      action: 'Lost 21 EMA on volume. Cut size or exit. 50MA next support.',
-      reasoning: `Lost 21 EMA by ${Math.abs(distEma21).toFixed(1)}% · 21EMA slope ${ema21Slope.toFixed(1)}%/10d · vol ${volRatio5_20.toFixed(1)}×`,
+      action: 'Lost 21 EMA. Cut size or exit. 50MA next support.',
+      reasoning: `Lost 21 EMA by ${Math.abs(distEma21).toFixed(1)}% · slope ${ema21Slope.toFixed(1)}%/10d${volRatio5_20 > 1.2 ? ' · vol confirming' : ''}`,
       ruleChecklist: [
         ruleItem('Price below 21 EMA', !aboveEma21, `$${currentPrice.toFixed(2)} vs 21EMA $${ema21.toFixed(2)}`),
         ruleItem('21 EMA slope rolling over (negative)', ema21Slope < 0, `${ema21Slope.toFixed(2)}%/10d`),
         ruleItem('More than 2% below 21 EMA', distEma21 < -2, `${distEma21.toFixed(1)}% below`),
-        ruleItem('Volume > 1.2× average', volRatio5_20 > 1.2, `${volRatio5_20.toFixed(2)}× vol`),
       ],
+      watchouts: [volRatio5_20 > 1.2 ? `Vol ${volRatio5_20.toFixed(1)}× confirming break` : `Vol ${volRatio5_20.toFixed(1)}× — break still valid, watch for follow-through`],
       entryStrategy: {
         type: 'exit',
         stopBelow: ma50,
@@ -218,17 +218,16 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     // ── CLASSIFICATION BASED ON MA STRUCTURE + EXTENSION ONLY ──
     
     // LATE/EXHAUSTED MOMENTUM: very far from 20MA OR climactic volume on extended move
-    if (distMa20 > 25 || (distMa20 > 15 && volRatio5_20 > 2.5)) {
+    if (distMa20 > 25) {
       return {
         mode: 'LATE_MOMENTUM',
         label: 'Late/Exhausted Momentum',
         color: 'orange',
         action: "Don't chase. Wait for pullback to 9EMA or 21EMA.",
-        reasoning: `Extended ${distMa20.toFixed(0)}% above 20MA · vol ${volRatio5_20.toFixed(1)}× — climactic structure`,
+        reasoning: `Extended ${distMa20.toFixed(0)}% above 20MA${volRatio5_20 > 2.0 ? ' · climactic vol' : ''}`,
         ruleChecklist: [
           ruleItem('In momentum (bullish MAs + above 20MA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above20MA=${aboveMA20}, slope=${ma20Slope.toFixed(2)}%`),
-          ruleItem('OPTION A: 25%+ above 20 MA', distMa20 > 25, `${distMa20.toFixed(1)}% above 20MA (need >25)`),
-          ruleItem('OPTION B: 15%+ above 20 MA AND vol > 2.5×', distMa20 > 15 && volRatio5_20 > 2.5, `${distMa20.toFixed(1)}% extension, ${volRatio5_20.toFixed(2)}× vol`),
+          ruleItem('25%+ above 20 MA (very extended)', distMa20 > 25, `${distMa20.toFixed(1)}% above 20MA (need >25)`),
         ],
         watchouts,
         entryStrategy: {
@@ -254,8 +253,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         reasoning: `${distMa20.toFixed(1)}% above 20MA · MAs aligned · trend +${ma20Slope.toFixed(1)}%/10d`,
         ruleChecklist: [
           ruleItem('In momentum (bullish MAs + above 20MA + rising trend)', inMomentum, `bullishMA=${bullishMA}, above20MA=${aboveMA20}, slope=${ma20Slope.toFixed(2)}%`),
-          ruleItem('10-25% above 20 MA (extended but not climactic)', distMa20 > 10 && distMa20 <= 25, `${distMa20.toFixed(1)}% above 20MA`),
-          ruleItem('NOT climactic volume (otherwise → Late)', !(distMa20 > 15 && volRatio5_20 > 2.5), `${volRatio5_20.toFixed(2)}× vol`),
+          ruleItem('10-25% above 20 MA (extended but not yet exhausted)', distMa20 > 10 && distMa20 <= 25, `${distMa20.toFixed(1)}% above 20MA`),
         ],
         watchouts,
         entryStrategy: {
@@ -332,19 +330,19 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   // ── 3. SETUP MODES (not in momentum, no uptrend yet) ──
   
   // SETUP READY: pulled back into fib zone with declining volume
-  if (validFib && fibPosition >= 0.382 && fibPosition <= 0.62 && volDryPct > 5) {
+  if (validFib && fibPosition >= 0.382 && fibPosition <= 0.62) {
     return {
       mode: 'SETUP_READY',
       label: 'Setup Ready',
       color: 'blue',
       action: `Enter on bounce. Fib zone $${fib618.toFixed(2)}-$${fib50.toFixed(2)}.`,
-      reasoning: `In .500-.618 fib zone · volume drying ${volDryPct.toFixed(0)}% · ready for bounce`,
+      reasoning: `In .500-.618 fib zone${volDryPct > 5 ? ' · vol drying ' + volDryPct.toFixed(0) + '%' : ''} · ready for bounce`,
       ruleChecklist: [
         ruleItem('NOT in momentum', !inMomentum, `bullishMA=${bullishMA}, slope=${ma20Slope.toFixed(2)}%`),
         ruleItem('Valid swing high/low identified', validFib, `swing high $${fibSwingHigh.toFixed(2)} / low $${fibSwingLow.toFixed(2)}`),
         ruleItem('Price in .500-.618 fib retracement zone', fibPosition >= 0.382 && fibPosition <= 0.62, `fibPos ${fibPosition.toFixed(2)} (need 0.38-0.62)`),
-        ruleItem('Volume drying up (> 5% decline last 10d vs prior 10d)', volDryPct > 5, `${volDryPct.toFixed(1)}% drier`),
       ],
+      watchouts: volDryPct > 5 ? [`Vol drying ${volDryPct.toFixed(0)}% — bullish confirmation`] : [`Vol ${volDryPct >= 0 ? 'flat' : 'rising'} (${volDryPct.toFixed(0)}%) — setup still valid without vol confirm`],
       entryStrategy: {
         type: 'fib',
         levelBest: fib618, levelBestLabel: '.618 (best)',
@@ -358,18 +356,18 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
   }
   
   // SETUP FORMING: tight base, low volume
-  if (consolRangePct < 15 && volDryPct > 10) {
+  if (consolRangePct < 15) {
     return {
       mode: 'SETUP_FORMING',
       label: 'Setup Forming',
       color: 'purple',
       action: 'Wait — get ready. Tight base building.',
-      reasoning: `Tight ${consolRangePct.toFixed(0)}% box · vol drying ${volDryPct.toFixed(0)}%`,
+      reasoning: `Tight ${consolRangePct.toFixed(0)}% box${volDryPct > 10 ? ' · vol drying ' + volDryPct.toFixed(0) + '%' : ''}`,
       ruleChecklist: [
         ruleItem('NOT in momentum (no uptrend yet)', !inMomentum, `bullishMA=${bullishMA}`),
         ruleItem('Tight 20-day box (< 15% range)', consolRangePct < 15, `${consolRangePct.toFixed(1)}% range (need <15)`),
-        ruleItem('Volume drying up (> 10% decline)', volDryPct > 10, `${volDryPct.toFixed(1)}% drier`),
       ],
+      watchouts: volDryPct > 10 ? [`Vol drying ${volDryPct.toFixed(0)}% — confirming base`] : [`Vol ${volDryPct > 0 ? 'drying ' + volDryPct.toFixed(0) + '%' : 'flat/rising'} — base still valid`],
       entryStrategy: {
         type: 'breakout_or_pullback',
         breakoutLevel: consolHigh * 1.02,
@@ -394,7 +392,7 @@ function classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow) {
         ruleItem('Above 50 MA', aboveMA50, `${distMa50.toFixed(1)}% from 50MA`),
         ruleItem('MAs NOT aligned bullishly (would be momentum)', !bullishMA, `9EMA $${ema9.toFixed(2)} | 21EMA $${ema21.toFixed(2)} | 20MA $${ma20.toFixed(2)}`),
         ruleItem('NOT in fib zone (would be Setup Ready)', !(validFib && fibPosition >= 0.382 && fibPosition <= 0.62), `fibPos ${fibPosition.toFixed(2)}`),
-        ruleItem('NOT a tight base (would be Setup Forming)', !(consolRangePct < 15 && volDryPct > 10), `${consolRangePct.toFixed(0)}% range, vol drying ${volDryPct.toFixed(0)}%`),
+        ruleItem('NOT a tight base (would be Setup Forming)', !(consolRangePct < 15), `${consolRangePct.toFixed(0)}% range (need <15)`),
       ],
       entryStrategy: null,
       facts, confidence: 40,

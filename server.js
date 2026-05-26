@@ -138,11 +138,11 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
       if (currentPrice > ma10 && ma10 > ma20) details.push(`📊 MAs aligned bullishly`);
     }
   }
-  // === COILING: Price inside tight consolidation with volume drying up ===
-  // Both candle tightening AND volume drying up required
-  else if (tighteningPct > 20 && volDryPct > 15 && consolRangePct < 15) {
+  // === COILING: Price inside tight consolidation
+  // Tightening + range required; volume drying is bonus
+  else if (tighteningPct > 20 && consolRangePct < 15) {
     signal = 'COILING';
-    score = 50 + Math.min(25, tighteningPct * 0.5) + Math.min(15, volDryPct * 0.3);
+    score = 50 + Math.min(25, tighteningPct * 0.5) + (volDryPct > 0 ? Math.min(15, volDryPct * 0.3) : 0);
     reason = `Coiling tight — alert at $${(consolHigh * 1.03).toFixed(2)}`;
     details.push(`📦 Candles tightening ${tighteningPct.toFixed(0)}% in last 10 days`);
     details.push(`📉 Volume drying ${volDryPct.toFixed(0)}% — energy building`);
@@ -205,7 +205,8 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     }
   }
 
-  const ema9 = calcEMA(closes.slice(-30), 9);
+  const ema9 = calcEMA(closes.slice(-40), 9);
+  const ema21 = calcEMA(closes.slice(-60), 21);
   const modeClass = classifyMode(candles, currentPrice, fibSwingHigh, fibSwingLow);
 
   return {
@@ -220,6 +221,7 @@ function detectMomentum(candles, currentPrice, fibSwingHigh, fibSwingLow) {
     tighteningPct: parseFloat(tighteningPct.toFixed(1)),
     pctAboveConsol: parseFloat(pctAboveConsol.toFixed(1)),
     ema9: parseFloat(ema9.toFixed(2)),
+    ema21: parseFloat(ema21.toFixed(2)),
     ma10: parseFloat(ma10.toFixed(2)),
     ma20: parseFloat(ma20.toFixed(2)),
     ma50: parseFloat(ma50.toFixed(2)),
